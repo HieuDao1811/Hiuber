@@ -1,11 +1,12 @@
 import { StringValue } from "ms";
 import { TokenPayload } from "./enum.js";
+import { ITokenIntrospect, TokenIntrospectResult } from "../interface/i-repository.js";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 
 dotenv.config();
 
-class JwtTokenService {
+class JwtTokenService implements ITokenIntrospect {
   private readonly secretKey: string;
   private readonly expiresIn: StringValue;
 
@@ -21,6 +22,21 @@ class JwtTokenService {
   async verifyToken(token: string) {
     const decoded = jwt.verify(token, this.secretKey) as TokenPayload;
     return decoded;
+  }
+
+  async introspect(token: string): Promise<TokenIntrospectResult> {
+    try {
+      return {
+        payload: await this.verifyToken(token),
+        isOk: true
+      };
+    } catch (error) {
+      return {
+        payload: null,
+        error: error as Error,
+        isOk: false
+      };
+    }
   }
 }
 

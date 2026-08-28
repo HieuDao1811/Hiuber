@@ -1,9 +1,9 @@
-import { ListResult } from "../config/enum.js";
-import { CondUserDTO, PagingDTO, UpdateUserDTO } from "../model/dto.js";
+import { ListResult, Role } from "../config/enum.js";
+import { CondUserDTO, CreateUserDTO, PagingDTO, UpdateUserDTO } from "../model/dto.js";
 import { User } from "../model/user.js";
 
 export interface IUserCommandRepository {
-  insert(data: User): Promise<User>;
+  insert(data: CreateUserDTO): Promise<string>;
   update(id: string, data: UpdateUserDTO): Promise<boolean>;
   delete(id: string): Promise<boolean>;
 }
@@ -15,3 +15,20 @@ export interface IUserQueryRepository {
 }
 
 export interface IUserRepository extends IUserCommandRepository, IUserQueryRepository {}
+
+export interface TokenPayload {
+  sub: string,
+  role: Role
+}
+
+export interface Requester extends TokenPayload {}
+
+export type TokenIntrospectResult = {
+  payload: TokenPayload | null;
+  error?: Error;
+  isOk: boolean
+}
+
+export interface ITokenIntrospect {
+  introspect(token: string): Promise<TokenIntrospectResult>
+}

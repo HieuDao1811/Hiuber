@@ -1,12 +1,14 @@
 import { ListResult } from "../../config/enum.js";
 import { IUserRepository } from "../../interface/i-repository.js";
-import { UpdateUserDTO, CondUserDTO, PagingDTO } from "../../model/dto.js";
+import { UpdateUserDTO, CondUserDTO, PagingDTO, CreateUserDTO } from "../../model/dto.js";
 import { User } from "../../model/user.js";
 import { UserModel } from "./mongodb/user.mongodb.js";
 
 export class UserRepository implements IUserRepository {
-  async insert(data: User): Promise<User> {
-    return await UserModel.insertOne(data);
+
+  async insert(data: CreateUserDTO): Promise<string> {
+    const result = await UserModel.create(data);
+    return result._id.toString();
   }
 
   async update(id: string, data: UpdateUserDTO): Promise<boolean> {
