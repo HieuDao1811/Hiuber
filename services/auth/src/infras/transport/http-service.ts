@@ -1,4 +1,4 @@
-import { IUserCommandHandler, LoginUserCommand } from "../../interface/i-command.js";
+import { GoogleLoginCommand, IUserCommandHandler, LoginUserCommand } from "../../interface/i-command.js";
 import { IUserQueryHandler, ProfileQuery } from "../../interface/i-query.js";
 import { Requester } from "../../interface/i-repository.js";
 import { User } from "../../model/user.js";
@@ -8,7 +8,8 @@ export class UserHttpService {
   constructor(
     private readonly loginUserCmdHandler: IUserCommandHandler<LoginUserCommand, string>,
     private readonly registerUserCmdHandler: RegisterUserCmdHandler,
-    private readonly profileQueryHandler: IUserQueryHandler<ProfileQuery, User>
+    private readonly profileQueryHandler: IUserQueryHandler<ProfileQuery, User>,
+    private readonly googleLoginCmdHandler?: IUserCommandHandler<GoogleLoginCommand, string>
   ) {}
 
   async loginAPI(req: Request, res: Response) {
@@ -24,6 +25,19 @@ export class UserHttpService {
     try {
       const userId = await this.registerUserCmdHandler.execute({cmd: req.body });
       res.status(201).json({ data: userId });
+    } catch (error) {
+      res.status(400).json({ error: (error as Error).message });
+    }
+  }
+
+  async googleLoginAPI(req: Request, res: Response) {
+    try {
+      const { code } = req.body;
+      if (!this.googleLoginCmdHandler) {
+        throw new Error("Google login handler is not configured");
+      }
+      const token = await this.googleLoginCmdHandler.execute({ code });
+      res.status(200).json({ data: token });
     } catch (error) {
       res.status(400).json({ error: (error as Error).message });
     }

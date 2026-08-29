@@ -8,6 +8,10 @@ export interface RegisterUserCommand {
   cmd: RegisterUserDTO
 }
 
+export interface GoogleLoginCommand {
+  code: string;
+}
+
 export interface IUserCommandHandler<Command, Result> {
   execute(cmd: Command): Promise<Result>;
 }

@@ -4,6 +4,10 @@ import { Role, Status } from "../../../config/enum.js";
 export const modelName = "User"
 
 const UserPersistence = new Schema({
+  _id: {
+    type: String,
+    required: true
+  },
   name: {
     type: String,
     required: true

@@ -3,6 +3,7 @@ import { IUserCommandHandler, RegisterUserCommand } from "../interface/i-command
 import { IUserRepository } from "../interface/i-repository.js";
 import { RegisterUserDTOSchema } from "../model/dto.js";
 import { ErrInvalidRegisterUserData, ErrUserAlreadyExists } from "../model/error.js";
+import { v7 } from "uuid";
 import bcrypt from "bcrypt";
 
 export class RegisterUserCmdHandler implements IUserCommandHandler<RegisterUserCommand, string> {
@@ -22,8 +23,11 @@ export class RegisterUserCmdHandler implements IUserCommandHandler<RegisterUserC
       throw ErrUserAlreadyExists;
     }
 
+    const newId = v7();
+
     const hashPassword = bcrypt.hashSync(password, 10);
     const user = {
+      id: newId,
       name,
       email,
       password: hashPassword,
@@ -32,8 +36,8 @@ export class RegisterUserCmdHandler implements IUserCommandHandler<RegisterUserC
       role: Role.CUSTOMER
     }
 
-    const userId = await this.repository.insert(user);
+    await this.repository.insert(user);
 
-    return userId;
+    return newId;
   }
 }

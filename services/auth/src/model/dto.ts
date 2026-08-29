@@ -8,6 +8,12 @@ export const LoginUserDTOSchema = z.object({
 
 export type LoginUserDTO = z.infer<typeof LoginUserDTOSchema>;
 
+export const GoogleLoginDTOSchema = z.object({
+  code: z.string().min(1)
+});
+
+export type GoogleLoginDTO = z.infer<typeof GoogleLoginDTOSchema>;
+
 export const UpdateUserDTOSchema = z.object({
   name: z.string().optional(),
   password: z.string().optional(),
