@@ -3,7 +3,7 @@ import { CondUserDTO, CreateUserDTO, PagingDTO, UpdateUserDTO } from "../model/d
 import { User } from "../model/user.js";
 
 export interface IUserCommandRepository {
-  insert(data: CreateUserDTO): Promise<boolean>;
+  insert(data: CreateUserDTO): Promise<string>;
   update(id: string, data: UpdateUserDTO): Promise<boolean>;
   delete(id: string): Promise<boolean>;
 }
