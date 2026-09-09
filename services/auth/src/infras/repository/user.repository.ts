@@ -6,8 +6,9 @@ import { UserModel } from "./mongodb/user.mongodb.js";
 
 export class UserRepository implements IUserRepository {
 
-  async insert(data: CreateUserDTO): Promise<string> {
-    const result = await UserModel.create(data);
+  async insert(data: CreateUserDTO & { id: string }): Promise<string> {
+    const { id, ...userData } = data;
+    const result = await UserModel.create({ _id: id, ...userData });
     return result._id.toString();
   }
 

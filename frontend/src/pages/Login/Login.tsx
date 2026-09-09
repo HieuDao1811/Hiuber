@@ -48,7 +48,7 @@ const Login = () => {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         toast.error(
-          error.response?.data?.message || "Invalid email or password"
+          error.response?.data?.message || "Invalid email or password",
         );
       } else {
         toast.error("Something went wrong. Please try again.");
@@ -67,11 +67,17 @@ const Login = () => {
         code: authResult.code,
       });
 
-      localStorage.setItem("token", result.data.token);
-      toast.success(result.data.message || "Google sign-in successful!");
+      localStorage.setItem("token", result.data.data);
+      toast.success("Google sign-in successful!");
       navigate("/");
     } catch (error) {
-      toast.error("Problem while logging in with Google");
+      if (axios.isAxiosError(error)) {
+        toast.error(
+          error.response?.data?.error || "Problem while logging in with Google",
+        );
+      } else {
+        toast.error("Problem while logging in with Google");
+      }
     } finally {
       setLoading(false);
     }
@@ -98,13 +104,12 @@ const Login = () => {
 
       {/* Main Container Card */}
       <div className="w-full max-w-4xl bg-white rounded-3xl shadow-[0_20px_50px_rgba(49,49,49,0.08)] border border-[#E3E3E3]/60 overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[620px]">
-        
         {/* Left Side: Brand Visual & Delivery Aesthetic */}
         <div className="lg:col-span-5 bg-[#313131] text-white p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden">
           {/* Subtle Background Warm Glow & Shapes */}
           <div className="absolute -right-16 -top-16 w-56 h-56 bg-[#C67C4E]/25 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -left-12 -bottom-12 w-64 h-64 bg-[#C67C4E]/15 rounded-full blur-3xl pointer-events-none" />
-          
+
           {/* Top Brand Tag */}
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10">
@@ -122,7 +127,8 @@ const Login = () => {
                 <span className="text-[#C67C4E]">Doorstep!</span>
               </h2>
               <p className="mt-3 text-sm text-[#E3E3E3]/80 leading-relaxed font-light">
-                Order your favorite food, drinks, and daily essentials with lightning-fast delivery in minutes.
+                Order your favorite food, drinks, and daily essentials with
+                lightning-fast delivery in minutes.
               </p>
             </div>
           </div>
@@ -135,8 +141,12 @@ const Login = () => {
                   <FiClock className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-semibold text-white">Ultra-Fast 20-Min Delivery</h4>
-                  <p className="text-[11px] text-[#E3E3E3]/70">Live real-time driver tracking</p>
+                  <h4 className="text-xs font-semibold text-white">
+                    Ultra-Fast 20-Min Delivery
+                  </h4>
+                  <p className="text-[11px] text-[#E3E3E3]/70">
+                    Live real-time driver tracking
+                  </p>
                 </div>
               </div>
               <div className="h-px bg-white/10 w-full" />
@@ -155,14 +165,15 @@ const Login = () => {
           {/* Bottom Footer Note */}
           <div className="relative z-10 text-xs text-[#E3E3E3]/60 flex items-center justify-between">
             <span>© {new Date().getFullYear()} Hiuber Inc.</span>
-            <span className="text-[#EDD6C8]/80 font-medium">Fast & Reliable</span>
+            <span className="text-[#EDD6C8]/80 font-medium">
+              Fast & Reliable
+            </span>
           </div>
         </div>
 
         {/* Right Side: Login Form */}
         <div className="lg:col-span-7 p-6 sm:p-10 lg:p-12 flex flex-col justify-center bg-white">
           <div className="max-w-md w-full mx-auto space-y-6">
-            
             {/* Header */}
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -200,7 +211,6 @@ const Login = () => {
 
             {/* Credentials Form */}
             <form onSubmit={handleLogin} className="space-y-4">
-              
               {/* Email Input */}
               <div className="space-y-1.5">
                 <label
@@ -239,7 +249,12 @@ const Login = () => {
                   </label>
                   <button
                     type="button"
-                    onClick={() => toast("Please contact support or check your email to reset your password.", { icon: "ℹ️" })}
+                    onClick={() =>
+                      toast(
+                        "Please contact support or check your email to reset your password.",
+                        { icon: "ℹ️" },
+                      )
+                    }
                     className="text-xs font-medium text-[#C67C4E] hover:underline cursor-pointer"
                   >
                     Forgot?
@@ -265,7 +280,9 @@ const Login = () => {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex={0}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                     className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#313131]/50 hover:text-[#313131] transition-colors focus:outline-none cursor-pointer"
                   >
                     {showPassword ? (
@@ -287,7 +304,9 @@ const Login = () => {
                     className="sr-only peer"
                   />
                   <div className="w-4 h-4 rounded-md border border-[#E3E3E3] peer-checked:bg-[#C67C4E] peer-checked:border-[#C67C4E] peer-focus:ring-2 peer-focus:ring-[#C67C4E]/20 flex items-center justify-center transition-colors">
-                    {rememberMe && <FiCheck className="w-3 h-3 text-white stroke-[3]" />}
+                    {rememberMe && (
+                      <FiCheck className="w-3 h-3 text-white stroke-[3]" />
+                    )}
                   </div>
                   <span>Remember my preferences</span>
                 </label>
@@ -339,17 +358,18 @@ const Login = () => {
                 to="/login"
                 onClick={(e) => {
                   e.preventDefault();
-                  toast("Sign-up is available with Google or standard credentials.", { icon: "📦" });
+                  toast(
+                    "Sign-up is available with Google or standard credentials.",
+                    { icon: "📦" },
+                  );
                 }}
                 className="font-semibold text-[#C67C4E] hover:underline cursor-pointer"
               >
                 Sign up
               </Link>
             </div>
-
           </div>
         </div>
-
       </div>
     </div>
   );

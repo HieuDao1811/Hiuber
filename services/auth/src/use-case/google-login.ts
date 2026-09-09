@@ -19,7 +19,7 @@ export class GoogleLoginCmdHandler implements IUserCommandHandler<GoogleLoginCom
       throw ErrInvalidGoogleLoginData;
     }
 
-    const { tokens } = await oauth2client.getToken(cmd.code);
+    const { tokens } = await oauth2client.getToken({ code: cmd.code, redirect_uri: "postmessage" });
 
     // Attach a token to the oauth client
     oauth2client.setCredentials(tokens);
