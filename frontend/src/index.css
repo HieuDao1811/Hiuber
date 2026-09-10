@@ -1,1 +1,29 @@
 @import "tailwindcss";
+
+@theme {
+  --color-brand: #C67C4E;
+  --color-brand-hover: #b36b3f;
+  --color-brand-light: #fdfaf7;
+  --color-dark: #222222;
+  --color-muted: #666666;
+  --color-border: #e5e5e5;
+  --color-bg: #f8f8f8;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: 'Sora', system-ui, sans-serif;
+    background-color: var(--color-bg);
+    color: var(--color-dark);
+    margin: 0;
+  }
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}

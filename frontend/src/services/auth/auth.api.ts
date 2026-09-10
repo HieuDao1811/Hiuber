@@ -1,4 +1,4 @@
-import { authApi } from "../../services/axios"
+import { authApi } from "../axios"
 import type { LoginRequest, RegisterRequest } from "./auth.type";
 
 export const login = async (data: LoginRequest) => {

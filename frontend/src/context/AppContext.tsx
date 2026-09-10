@@ -1,9 +1,8 @@
 import axios from "axios";
-import { createContext, useEffect, useState, type ReactNode } from "react";
-import { authService } from "../main";
-import { type AppContextType, type User } from "../features/auth/auth.type";
-
-const AppContext = createContext<AppContextType | undefined>(undefined);
+import { useEffect, useState, type ReactNode } from "react";
+import { authService } from "../constants/app";
+import { type User } from "../services/auth/auth.type";
+import { AppContext } from "./context";
 
 interface AppProviderProps {
   children: ReactNode;
@@ -14,30 +13,50 @@ export const AppProvider = ({ children }: AppProviderProps) => {
   const [isAuth, setIsAuth] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  async function fetchUser() {
-    try {
-      const token = localStorage.getItem("token");
-
-      const { data } = await axios.get(`${authService}/v1/auth/profile`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        }
-      });
-
-      setUser(data.user);
-      setIsAuth(true);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    // The request updates state asynchronously after the profile response arrives.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchUser();
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        if (isMounted) setLoading(false);
+        return;
+      }
+
+      try {
+        const { data } = await axios.get(`${authService}/v1/auth/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (isMounted) {
+          setUser(data.data);
+          setIsAuth(true);
+        }
+      } catch (error) {
+        console.error(error);
+        localStorage.removeItem("token");
+        setIsAuth(false);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  return <AppContext.Provider value={{isAuth, loading, setIsAuth, setLoading, setUser, user}}>{children}</AppContext.Provider>
-}
+  return (
+    <AppContext.Provider
+      value={{ isAuth, loading, setIsAuth, setLoading, setUser, user }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
+};
