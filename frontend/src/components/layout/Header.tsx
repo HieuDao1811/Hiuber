@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FiMapPin, FiChevronDown, FiLogOut } from "react-icons/fi";
+import { FiChevronDown, FiLogOut, FiUser } from "react-icons/fi";
 import { useAuth } from "../../hooks/useAuth";
 
 export const Header = () => {
@@ -17,21 +17,15 @@ export const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-dark text-white border-b border-white/10">
+    <header className="sticky top-0 z-40 bg-white text-dark border-b border-border shadow-xs">
       <div className="max-w-md md:max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center font-bold text-white">
+          <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center font-bold text-white shadow-xs">
             H
           </div>
-          <span className="font-bold text-base tracking-tight">Hiuber</span>
+          <span className="font-bold text-base tracking-tight text-dark">Hiuber</span>
         </Link>
-
-        {/* Location snippet */}
-        <div className="flex items-center gap-1 text-xs text-white/80 max-w-[160px] truncate">
-          <FiMapPin className="text-brand shrink-0" />
-          <span className="truncate">Hồ Chí Minh, VN</span>
-        </div>
 
         {/* User / Sign in button */}
         <div className="flex items-center gap-2">
@@ -40,20 +34,20 @@ export const Header = () => {
               <button
                 type="button"
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="flex items-center gap-1.5 p-1 rounded-full hover:bg-white/10"
+                className="flex items-center gap-1.5 p-1 rounded-full hover:bg-gray-100 transition-colors"
               >
                 {user.image ? (
                   <img
                     src={user.image}
                     alt=""
-                    className="w-7 h-7 rounded-full object-cover"
+                    className="w-7 h-7 rounded-full object-cover border border-border"
                   />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-brand flex items-center justify-center text-xs font-bold">
+                  <div className="w-7 h-7 rounded-full bg-brand flex items-center justify-center text-xs font-bold text-white">
                     {user.name?.charAt(0).toUpperCase() || "U"}
                   </div>
                 )}
-                <FiChevronDown className="text-white/60 text-xs" />
+                <FiChevronDown className="text-muted text-xs" />
               </button>
 
               {menuOpen && (
@@ -67,10 +61,18 @@ export const Header = () => {
                       <p className="text-xs font-semibold truncate">{user.name}</p>
                       <p className="text-[11px] text-muted truncate">{user.email}</p>
                     </div>
+                    <Link
+                      to="/profile"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-xs text-dark hover:bg-brand-light transition-colors"
+                    >
+                      <FiUser />
+                      <span>Hồ sơ của tôi</span>
+                    </Link>
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 text-left"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 text-left cursor-pointer transition-colors"
                     >
                       <FiLogOut />
                       <span>Đăng xuất</span>
@@ -82,7 +84,7 @@ export const Header = () => {
           ) : (
             <Link
               to="/login"
-              className="px-3 py-1.5 bg-brand hover:bg-brand-hover text-white rounded-lg text-xs font-medium"
+              className="px-3.5 py-1.5 bg-brand hover:bg-brand-hover text-white rounded-lg text-xs font-medium transition-colors"
             >
               Đăng nhập
             </Link>

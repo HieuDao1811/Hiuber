@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import Home from "../pages/Home/Home";
 import Login from "../pages/Login/Login";
 import Register from "../pages/Register/Register";
+import Profile from "../pages/Profile/Profile";
 import PublicRoute from "../components/routes/publicRoute";
 import ProtectedRoute from "../components/routes/protectedRoute";
 
@@ -21,7 +22,7 @@ const AppRoutes = () => {
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute />}>
-          {/* Add protected features here when ready */}
+          <Route path="/profile" element={<Profile />} />
         </Route>
       </Routes>
       <Toaster

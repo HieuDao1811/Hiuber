@@ -1,4 +1,4 @@
-import { FiHome, FiClock, FiTag, FiUser } from "react-icons/fi";
+import { FiHome, FiClipboard, FiTag, FiUser } from "react-icons/fi";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -8,7 +8,7 @@ export const MobileNavbar = () => {
 
   const navItems = [
     { label: "Trang chủ", icon: FiHome, path: "/" },
-    { label: "Hoạt động", icon: FiClock, path: isAuth ? "/activity" : "/login" },
+    { label: "Đơn hàng", icon: FiClipboard, path: isAuth ? "/orders" : "/login" },
     { label: "Ưu đãi", icon: FiTag, path: "/offers" },
     { label: "Tài khoản", icon: FiUser, path: isAuth ? "/profile" : "/login" },
   ];
