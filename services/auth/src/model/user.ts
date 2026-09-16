@@ -1,14 +1,14 @@
-import z from "zod";
-import { Role, Status } from "../config/enum.js";
+import { z } from "zod";
+import { Role } from "../share/enums/index.js";
 
 export const UserSchema = z.object({
-  id: z.string(),
-  name: z.string(),
+  id: z.uuid(),
+  fullName: z.string().min(2),
   email: z.email(),
-  password: z.string(),
-  status: z.enum(Status).default(Status.ACTIVE),
-  role: z.enum(Role).default(Role.CUSTOMER),
-  image: z.url(),
-})
+  passwordHash: z.string(),
+  role: z.enum(Role),
+  createdAt: z.date(),
+  updatedAt: z.date()
+});
 
 export type User = z.infer<typeof UserSchema>;
