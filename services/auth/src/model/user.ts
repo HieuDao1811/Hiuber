@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Role } from "../share/enums/index.js";
+import { Role, Status } from "../share/enums/index.js";
 
 export const UserSchema = z.object({
   id: z.uuid(),
@@ -7,7 +7,8 @@ export const UserSchema = z.object({
   email: z.email(),
   phone: z.string().regex(/^0\d{9}$/),
   passwordHash: z.string(),
-  role: z.enum(Role),
+  role: z.enum(Role).default(Role.CUSTOMER),
+  status: z.enum(Status).default(Status.ACTIVE),
   createdAt: z.date(),
   updatedAt: z.date()
 });

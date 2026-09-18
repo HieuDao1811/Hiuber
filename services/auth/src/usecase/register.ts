@@ -4,6 +4,7 @@ import { CreateUserSchema } from "../model/user.dto.js";
 import { User } from "../model/user.js";
 import bcrypt from "bcrypt";
 import { v7 } from 'uuid';
+import { Role, Status } from "../share/enums/index.js";
 
 export class RegisterCommandHandler implements IAuthCommandHandler<CreateCommand, User> {
   constructor(private readonly repository: IAuthRepository) {}
@@ -27,7 +28,8 @@ export class RegisterCommandHandler implements IAuthCommandHandler<CreateCommand
       email: data.email,
       phone: data.phone,
       passwordHash,
-      role: data.role,
+      role: Role.CUSTOMER,
+      status: Status.ACTIVE,
       createdAt: new Date(),
       updatedAt: new Date()
     }

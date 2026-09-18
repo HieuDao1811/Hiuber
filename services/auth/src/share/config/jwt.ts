@@ -24,4 +24,4 @@ export class JwtTokenService {
   }
 }
 
-export const jwtProvide = new JwtTokenService(process.env.SECRET_KEY!, process.env.EXPIRES_IN as StringValue);
+export const jwtProvider = new JwtTokenService(process.env.SECRET_KEY!, process.env.EXPIRES_IN as StringValue);

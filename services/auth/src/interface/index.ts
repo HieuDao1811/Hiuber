@@ -1,4 +1,4 @@
-import { CreateUser } from "../model/user.dto.js";
+import { CreateUser, Login } from "../model/user.dto.js";
 import { RefreshToken } from "../model/refresh-token.js";
 import { User } from "../model/user.js";
 import { Role } from "../share/enums/index.js";
@@ -34,6 +34,10 @@ export interface TokenPayload {
 // Command
 export interface CreateCommand {
   command: CreateUser
+}
+
+export interface LoginCommand {
+  command: Login
 }
 
 // Query
