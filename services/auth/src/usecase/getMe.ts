@@ -4,7 +4,7 @@ import { User } from "../model/user.js";
 
 type GetMeResponse = Omit<User, "passwordHash" | "id" | "role">;
 
-export class getMeQueryHandler implements IAuthQueryHandler<GetMeQuery, GetMeResponse> {
+export class GetMeQueryHandler implements IAuthQueryHandler<GetMeQuery, GetMeResponse> {
   constructor(private readonly repository: IAuthRepository) {}
   async query(query: GetMeQuery): Promise<GetMeResponse> {
     const user = await this.repository.findById(query.id);

@@ -1,6 +1,7 @@
 import { CreateUser } from "../model/user.dto.js";
 import { RefreshToken } from "../model/refresh-token.js";
 import { User } from "../model/user.js";
+import { Role } from "../share/enums/index.js";
 
 export interface IUseCase {}
 
@@ -23,6 +24,11 @@ export interface IAuthCommandHandler<Command, Result> {
 
 export interface IAuthQueryHandler<Query, Result> {
   query(query: Query): Promise<Result>;
+}
+
+export interface TokenPayload {
+  sub: string,
+  role: Role
 }
 
 // Command
