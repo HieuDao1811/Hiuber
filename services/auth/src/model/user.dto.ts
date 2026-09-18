@@ -4,6 +4,7 @@ import { Role } from "../share/enums/index.js";
 export const CreateUserSchema = z.object({
   fullName: z.string().min(2),
   email: z.email(),
+  phone: z.string().regex(/^0\d{9}$/),
   password: z.string().min(6),
   role: z.enum(Role).default(Role.CUSTOMER)
 });

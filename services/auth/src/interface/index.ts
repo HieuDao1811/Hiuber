@@ -4,7 +4,7 @@ import { User } from "../model/user.js";
 
 export interface IUseCase {}
 
-export interface IUserRepository {
+export interface IAuthRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
   create(data: User): Promise<User>;
@@ -17,14 +17,20 @@ export interface IRefreshTokenRepository {
   revokeAllByUserId(userId: string): Promise<void>;
 }
 
-export interface IUserCommandHandler<Command, Result> {
+export interface IAuthCommandHandler<Command, Result> {
   execute(command: Command): Promise<Result>;
 }
 
-export interface IUserQueryHandler<Query, Result> {
+export interface IAuthQueryHandler<Query, Result> {
   query(query: Query): Promise<Result>;
 }
 
+// Command
 export interface CreateCommand {
   command: CreateUser
+}
+
+// Query
+export interface GetMeQuery {
+  id: string
 }

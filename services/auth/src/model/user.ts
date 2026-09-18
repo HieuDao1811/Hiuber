@@ -5,6 +5,7 @@ export const UserSchema = z.object({
   id: z.uuid(),
   fullName: z.string().min(2),
   email: z.email(),
+  phone: z.string().regex(/^0\d{9}$/),
   passwordHash: z.string(),
   role: z.enum(Role),
   createdAt: z.date(),
