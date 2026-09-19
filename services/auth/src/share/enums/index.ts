@@ -3,3 +3,9 @@ export enum Role {
   OWNER = "owner",
   RIDER = "rider"
 }
+
+export enum Status {
+  DELETED = "deleted",
+  INACTIVED = "inactived",
+  ACTIVE = "active"
+}
