@@ -11,7 +11,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    const payload = await jwtProvider.verifyToken(token);
+    const payload = jwtProvider.verifyAccessToken(token);
     if (!payload) {
       res.status(401).json({
         message: "Invalid or expired token",

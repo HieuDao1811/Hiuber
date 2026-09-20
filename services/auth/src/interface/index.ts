@@ -18,6 +18,23 @@ export interface IRefreshTokenRepository {
   revokeAllByUserId(userId: string): Promise<void>;
 }
 
+export type TokenPair = {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface RefreshTokenCommand {
+  command: {
+    refreshToken: string
+  }
+}
+
+export interface LogoutCommand {
+  command: {
+    refreshToken: string;
+  };
+}
+
 export interface IAuthCommandHandler<Command, Result> {
   execute(command: Command): Promise<Result>;
 }

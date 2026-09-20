@@ -17,3 +17,7 @@ export const LoginSchema = z.object({
 })
 
 export type Login = z.infer<typeof LoginSchema>;
+
+export const RefreshTokenSchema = z.object({
+  refreshToken: z.string().min(1),
+});
