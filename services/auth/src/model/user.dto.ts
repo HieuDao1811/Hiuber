@@ -21,3 +21,12 @@ export type Login = z.infer<typeof LoginSchema>;
 export const RefreshTokenSchema = z.object({
   refreshToken: z.string().min(1),
 });
+
+export const VerifyAccessTokenSchema = z.object({
+  accessToken: z.string().min(1),
+});
+
+export const TokenPayloadSchema = z.object({
+  sub: z.string().min(1),
+  role: z.enum(Role),
+});

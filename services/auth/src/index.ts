@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
 import { setUpAuthHexagon } from "./route/index.js";
+import { setUpInternalAuthHexagon } from "./route/internal.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 
 const app = express();
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use("/v1", setUpAuthHexagon);
+app.use("/internal", setUpInternalAuthHexagon());
 app.use(errorHandler);
 
 app.listen(port, () => {
