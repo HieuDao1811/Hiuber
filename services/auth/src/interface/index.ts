@@ -5,6 +5,10 @@ import { Role } from "../share/enums/index.js";
 
 export interface IUseCase {}
 
+export interface ITokenService {
+  verifyAccessToken(token: string): TokenPayload;
+}
+
 export interface IAuthRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
@@ -16,6 +20,23 @@ export interface IRefreshTokenRepository {
   findByToken(token: string): Promise<RefreshToken | null>;
   revoke(token: string): Promise<void>;
   revokeAllByUserId(userId: string): Promise<void>;
+}
+
+export type TokenPair = {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface RefreshTokenCommand {
+  command: {
+    refreshToken: string
+  }
+}
+
+export interface LogoutCommand {
+  command: {
+    refreshToken: string;
+  };
 }
 
 export interface IAuthCommandHandler<Command, Result> {
@@ -43,4 +64,8 @@ export interface LoginCommand {
 // Query
 export interface GetMeQuery {
   id: string
+}
+
+export interface VerifyAccessTokenQuery {
+  accessToken: string;
 }

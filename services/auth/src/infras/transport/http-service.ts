@@ -1,59 +1,74 @@
 import { Request, Response } from "express";
 import { RegisterCommandHandler } from "../../usecase/register.js";
-import { GetMeQueryHandler } from "../../usecase/getMe.js";
+import { GetMeQueryHandler } from "../../usecase/get-me.js";
 import { LoginCommandHandler } from "../../usecase/login.js";
-import { ErrInvalidEmailOrPassword, ErrUserInactivatedOrDeleted } from "../../model/errors.js";
+import { LogoutCommandHandler } from "../../usecase/logout.js";
+import { RefreshTokenCommandHandler } from "../../usecase/refresh-token.js";
+import { jwtProvider } from "../../share/config/jwt.js";
 
 export class AuthHttpService {
   constructor(
     private readonly registerCmd: RegisterCommandHandler,
     private readonly loginCmd: LoginCommandHandler,
     private readonly getMeQuery: GetMeQueryHandler,
+
+    private readonly refreshTokenCmd: RefreshTokenCommandHandler,
+    private readonly logoutCmd: LogoutCommandHandler,
   ) {}
 
+  private setRefreshTokenCookie(res: Response, refreshToken: string) {
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/v1/auth",
+      maxAge: jwtProvider.getExpiresAt(refreshToken).getTime() - Date.now(),
+    });
+  }
+
   async register(req: Request, res: Response) {
-    try {
-      const data = await this.registerCmd.execute(req.body);
-      res.status(201).json({ data: data });
-    } catch (error) {
-      res.status(400).json({ 
-        message: (error as Error).message
-      })
-    }
+    const data = await this.registerCmd.execute({ command: req.body });
+    return res.status(201).json({ data });
   }
 
   async login(req: Request, res: Response) {
-    try {
-      const data = await this.loginCmd.execute({ command: req.body });
-      res.status(200).json({ data: data });
-    } catch (error) {
-      if (error === ErrInvalidEmailOrPassword) {
-        return res.status(401).json({
-          message: (error as Error).message,
-        });
-      }
+    const data = await this.loginCmd.execute({ command: req.body });
+    this.setRefreshTokenCookie(res, data.refreshToken);
 
-      if (error === ErrUserInactivatedOrDeleted) {
-        return res.status(403).json({
-          message: (error as Error).message,
-        });
-      }
+    return res.status(200).json({
+      data: { accessToken: data.accessToken },
+    });
+  }
 
-      return res.status(500).json({
-        message: "Internal server error",
-      });
-    }
+  async refreshToken(req: Request, res: Response) {
+    const data = await this.refreshTokenCmd.execute({
+      command: { refreshToken: req.cookies.refreshToken },
+    });
+    this.setRefreshTokenCookie(res, data.refreshToken);
+
+    return res.status(200).json({
+      data: { accessToken: data.accessToken },
+    });
+  }
+
+  async logout(req: Request, res: Response) {
+    await this.logoutCmd.execute({
+      command: { refreshToken: req.cookies.refreshToken },
+    });
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/v1/auth",
+    });
+
+    return res.status(204).send();
   }
 
   async getMe(req: Request, res: Response) {
-    try {
-      const id = req.params.id as string;
-      const data = await this.getMeQuery.query({ id });
-      res.status(200).json({ data: data });
-    } catch (error) {
-      res.status(404).json({
-        message: (error as Error).message
-      })
-    }
+    const { sub: id } = res.locals.requester;
+    const data = await this.getMeQuery.query({ id });
+    return res.status(200).json({ data });
   }
 }

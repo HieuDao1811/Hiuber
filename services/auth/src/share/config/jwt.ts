@@ -1,27 +1,49 @@
 import jwt from "jsonwebtoken";
 import { StringValue } from "ms";
 import { TokenPayload } from "../../interface/index.js";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 export class JwtTokenService {
-  private readonly secretKey: string;
-  private readonly expiresIn: StringValue;
+  constructor(
+    private readonly accessSecretKey: string,
+    private readonly refreshSecretKey: string,
+    private readonly accessExpiresIn: StringValue,
+    private readonly refreshExpiresIn: StringValue,
+  ) {}
 
-  constructor(secretKey: string, expiresIn: StringValue) {
-    this.secretKey = secretKey;
-    this.expiresIn = expiresIn;
+  generateAccessToken(payload: TokenPayload): string {
+    return jwt.sign(payload, this.accessSecretKey, {
+      expiresIn: this.accessExpiresIn,
+    });
   }
 
-  async generateToken(payload: TokenPayload): Promise<string> {
-    return jwt.sign(payload, this.secretKey, { expiresIn: this.expiresIn });
+  generateRefreshToken(payload: TokenPayload): string {
+    return jwt.sign(payload, this.refreshSecretKey, {
+      expiresIn: this.refreshExpiresIn,
+    });
   }
 
-  async verifyToken(token: string): Promise<TokenPayload | null> {
-    const decoded = jwt.verify(token, this.secretKey) as TokenPayload;
-    return decoded;
+  verifyAccessToken(token: string): TokenPayload {
+    return jwt.verify(token, this.accessSecretKey) as TokenPayload;
+  }
+
+  verifyRefreshToken(token: string): TokenPayload {
+    return jwt.verify(token, this.refreshSecretKey) as TokenPayload;
+  }
+
+  getExpiresAt(token: string): Date {
+    const decoded = jwt.decode(token);
+
+    if (!decoded || typeof decoded === "string" || typeof decoded.exp !== "number") {
+      throw new Error("Token has no expiry");
+    }
+
+    return new Date(decoded.exp * 1000);
   }
 }
 
-export const jwtProvider = new JwtTokenService(process.env.SECRET_KEY!, process.env.EXPIRES_IN as StringValue);
+export const jwtProvider = new JwtTokenService(
+  process.env.ACCESS_TOKEN_SECRET!,
+  process.env.REFRESH_TOKEN_SECRET!,
+  process.env.ACCESS_TOKEN_EXPIRES_IN as StringValue,
+  process.env.REFRESH_TOKEN_EXPIRES_IN as StringValue,
+);
