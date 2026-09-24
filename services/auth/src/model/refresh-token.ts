@@ -5,3 +5,8 @@ export type RefreshToken = {
   expiresAt: Date;
   createdAt: Date;
 };
+
+export type CreateRefreshTokenRecord = Pick<
+  RefreshToken,
+  "userId" | "token" | "expiresAt"
+>;

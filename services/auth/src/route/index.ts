@@ -10,6 +10,7 @@ import {
   AuthRepository,
   RefreshTokenRepository,
 } from "../infras/repositories/index.js";
+import { jwtProvider } from "../share/config/jwt.js";
 
 export const setUpAuthHexagon = () => {
   const repository = new AuthRepository();
@@ -19,11 +20,13 @@ export const setUpAuthHexagon = () => {
   const loginCommandHandler = new LoginCommandHandler(
     repository,
     refreshTokenRepository,
+    jwtProvider,
   );
   const getMeQueryHandler = new GetMeQueryHandler(repository);
   const refreshTokenCommandHandler = new RefreshTokenCommandHandler(
     repository,
     refreshTokenRepository,
+    jwtProvider,
   );
   const logoutCommandHandler = new LogoutCommandHandler(
     refreshTokenRepository,

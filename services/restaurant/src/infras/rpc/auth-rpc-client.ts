@@ -22,9 +22,7 @@ export class AuthRpcClient implements IAuthService {
     try {
       response = await this.fetcher(this.verifyUrl, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ accessToken }),
         signal: AbortSignal.timeout(this.requestTimeoutMs),
       });
@@ -41,19 +39,8 @@ export class AuthRpcClient implements IAuthService {
     }
 
     try {
-      const payload: unknown = await response.json();
-      const parsedPayload = RequesterSchema.safeParse(payload);
-
-      if (!parsedPayload.success) {
-        throw new AuthServiceUnavailableError();
-      }
-
-      return parsedPayload.data;
-    } catch (error) {
-      if (error instanceof AuthServiceUnavailableError) {
-        throw error;
-      }
-
+      return RequesterSchema.parse(await response.json());
+    } catch {
       throw new AuthServiceUnavailableError();
     }
   }

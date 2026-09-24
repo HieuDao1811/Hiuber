@@ -12,3 +12,13 @@ export const UserSchema = z.object({
 });
 
 export type User = z.infer<typeof UserSchema>;
+export type PublicUser = Omit<User, "passwordHash">;
+export type CreateUserRecord = Pick<
+  User,
+  "email" | "passwordHash" | "role" | "status"
+>;
+
+export const toPublicUser = ({
+  passwordHash: _passwordHash,
+  ...user
+}: User): PublicUser => user;

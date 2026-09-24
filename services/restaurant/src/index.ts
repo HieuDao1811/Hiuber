@@ -3,8 +3,10 @@ import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
+import { pathToFileURL } from "node:url";
+import { PrismaMenuItemRepository } from "./infras/repository/prisma/menu-item.repository.js";
+import { PrismaRestaurantRepository } from "./infras/repository/prisma/restaurant.repository.js";
 import { AuthRpcClient } from "./infras/rpc/auth-rpc-client.js";
-import { IAuthService } from "./interface/index.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import {
   createRestaurantRouter,
@@ -29,23 +31,15 @@ export const createRestaurantApp = (
 
   app.get("/health", (_request, response) => {
     response.status(200).json({
-      data: {
-        service: "restaurant",
-        status: "ok",
-      },
+      data: { service: "restaurant", status: "ok" },
     });
   });
 
-  app.use("/restaurants", createRestaurantRouter(dependencies));
+  app.use("/v1/restaurants", createRestaurantRouter(dependencies));
   app.use(errorHandler);
 
   return app;
 };
-
-export const createDefaultAuthService = (): IAuthService =>
-  new AuthRpcClient(
-    process.env.AUTH_SERVICE_URL ?? "http://localhost:3000",
-  );
 
 export const startRestaurantServer = (
   dependencies: RestaurantAppDependencies,
@@ -57,5 +51,12 @@ export const startRestaurantServer = (
   });
 };
 
-// TODO: Instantiate the IRestaurantRepository adapter and pass it here with
-// createDefaultAuthService(), then call startRestaurantServer().
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  startRestaurantServer({
+    restaurantRepository: new PrismaRestaurantRepository(),
+    menuItemRepository: new PrismaMenuItemRepository(),
+    authService: new AuthRpcClient(
+      process.env.AUTH_SERVICE_URL ?? "http://localhost:3000",
+    ),
+  });
+}

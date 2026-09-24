@@ -1,15 +1,14 @@
 // src/usecase/login.ts
 import bcrypt from "bcrypt";
-import { v7 } from "uuid";
 import {
   IAuthCommandHandler,
   IAuthRepository,
   IRefreshTokenRepository,
+  ITokenService,
   LoginCommand,
   TokenPair,
 } from "../interface/index.js";
 import { LoginSchema } from "../model/user.dto.js";
-import { jwtProvider } from "../share/config/jwt.js";
 import {
   ErrInvalidEmailOrPassword,
   ErrUserDeleted,
@@ -23,6 +22,7 @@ export class LoginCommandHandler implements IAuthCommandHandler<
   constructor(
     private readonly userRepository: IAuthRepository,
     private readonly refreshTokenRepository: IRefreshTokenRepository,
+    private readonly tokenService: ITokenService,
   ) {}
 
   async execute(command: LoginCommand): Promise<TokenPair> {
@@ -38,15 +38,13 @@ export class LoginCommandHandler implements IAuthCommandHandler<
     }
 
     const payload = { sub: user.id, role: user.role };
-    const accessToken = jwtProvider.generateAccessToken(payload);
-    const refreshToken = jwtProvider.generateRefreshToken(payload);
+    const accessToken = this.tokenService.generateAccessToken(payload);
+    const refreshToken = this.tokenService.generateRefreshToken(payload);
 
     await this.refreshTokenRepository.create({
-      id: v7(),
       userId: user.id,
       token: refreshToken,
-      createdAt: new Date(),
-      expiresAt: jwtProvider.getExpiresAt(refreshToken),
+      expiresAt: this.tokenService.getExpiresAt(refreshToken),
     });
 
     return { accessToken, refreshToken };

@@ -2,15 +2,21 @@ import { RestaurantStatus } from "../share/enums/index.js";
 
 export type Restaurant = {
   id: string;
-  ownerId: string;
+  ownerUserId: string;
   name: string;
-  description: string | null;
-  phone: string;
   address: string;
-  latitude: number | null;
-  longitude: number | null;
   status: RestaurantStatus;
   createdAt: Date;
   updatedAt: Date;
-  deletedAt: Date | null;
+};
+
+export type MenuItem = {
+  id: string;
+  restaurantId: string;
+  name: string;
+  price: string;
+  imageUrl: string | null;
+  isAvailable: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 };

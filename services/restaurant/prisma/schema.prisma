@@ -6,3 +6,45 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum RestaurantStatus {
+  OPEN
+  CLOSED
+}
+
+model Restaurant {
+  id          String @id @default(uuid())
+  ownerUserId String
+
+  name    String
+  address String
+  status  RestaurantStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  menuItems MenuItem[]
+
+  @@index([ownerUserId])
+  @@index([status])
+  @@map("restaurants")
+}
+
+model MenuItem {
+  id           String @id @default(uuid())
+  restaurantId String
+
+  name        String
+  price       Decimal @db.Decimal(12, 2)
+  imageUrl    String?
+  isAvailable Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([restaurantId, isAvailable])
+  @@map("menu_items")
+}

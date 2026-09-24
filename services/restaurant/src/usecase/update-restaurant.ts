@@ -24,7 +24,6 @@ export class UpdateRestaurantCommandHandler
       command.id,
       command.requester,
     );
-
     return this.repository.update(command.id, command.input);
   }
 }
