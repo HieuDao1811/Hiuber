@@ -1,7 +1,4 @@
-export const successResponse = <Data>(data: Data, message = "Success") => ({
-  data,
-  message,
-});
+export const dataResponse = <Data>(data: Data) => ({ data });
 
 export const errorResponse = (
   code: string,

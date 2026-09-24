@@ -1,16 +1,19 @@
 import {
+  CursorPage,
+  CursorQuery,
   IQueryHandler,
   IRestaurantRepository,
-  RestaurantListResult,
 } from "../interface/index.js";
-import { RestaurantListQuery } from "../model/restaurant.dto.js";
+import { Restaurant } from "../model/restaurant.js";
+import { toCursorPage } from "./pagination.js";
 
 export class ListRestaurantsQueryHandler
-  implements IQueryHandler<RestaurantListQuery, RestaurantListResult>
+  implements IQueryHandler<CursorQuery, CursorPage<Restaurant>>
 {
   constructor(private readonly repository: IRestaurantRepository) {}
 
-  query(query: RestaurantListQuery): Promise<RestaurantListResult> {
-    return this.repository.findMany(query);
+  async query(query: CursorQuery): Promise<CursorPage<Restaurant>> {
+    const restaurants = await this.repository.findOpenPage(query);
+    return toCursorPage(restaurants, query.limit);
   }
 }

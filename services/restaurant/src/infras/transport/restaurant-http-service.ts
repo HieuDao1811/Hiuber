@@ -1,104 +1,109 @@
 import { Request, Response } from "express";
 import { UnauthenticatedError } from "../../model/errors.js";
 import {
+  CreateMenuItemSchema,
   CreateRestaurantSchema,
+  CursorPaginationSchema,
+  MenuItemIdSchema,
   RestaurantIdSchema,
-  RestaurantListQuerySchema,
+  UpdateMenuItemSchema,
   UpdateRestaurantSchema,
-  UpdateRestaurantStatusSchema,
 } from "../../model/restaurant.dto.js";
 import { Requester, RequesterSchema } from "../../model/requester.js";
-import {
-  successResponse,
-} from "../../share/components/http-response.js";
+import { dataResponse } from "../../share/components/http-response.js";
+import { CreateMenuItemCommandHandler } from "../../usecase/create-menu-item.js";
 import { CreateRestaurantCommandHandler } from "../../usecase/create-restaurant.js";
-import { DeleteRestaurantCommandHandler } from "../../usecase/delete-restaurant.js";
 import { GetRestaurantQueryHandler } from "../../usecase/get-restaurant.js";
+import { ListMenuItemsQueryHandler } from "../../usecase/list-menu-items.js";
 import { ListRestaurantsQueryHandler } from "../../usecase/list-restaurants.js";
+import { UpdateMenuItemCommandHandler } from "../../usecase/update-menu-item.js";
 import { UpdateRestaurantCommandHandler } from "../../usecase/update-restaurant.js";
-import { UpdateRestaurantStatusCommandHandler } from "../../usecase/update-restaurant-status.js";
 
 export class RestaurantHttpService {
   constructor(
     private readonly createRestaurant: CreateRestaurantCommandHandler,
-    private readonly getRestaurant: GetRestaurantQueryHandler,
     private readonly listRestaurants: ListRestaurantsQueryHandler,
+    private readonly getRestaurant: GetRestaurantQueryHandler,
     private readonly updateRestaurant: UpdateRestaurantCommandHandler,
-    private readonly updateRestaurantStatus: UpdateRestaurantStatusCommandHandler,
-    private readonly deleteRestaurant: DeleteRestaurantCommandHandler,
+    private readonly createMenuItem: CreateMenuItemCommandHandler,
+    private readonly listMenuItems: ListMenuItemsQueryHandler,
+    private readonly updateMenuItem: UpdateMenuItemCommandHandler,
   ) {}
 
   private getRequester(res: Response): Requester {
-    const parsedRequester = RequesterSchema.safeParse(res.locals.requester);
-    if (!parsedRequester.success) {
+    const requester = RequesterSchema.safeParse(res.locals.requester);
+    if (!requester.success) {
       throw new UnauthenticatedError();
     }
-    return parsedRequester.data;
+    return requester.data;
   }
 
   async create(req: Request, res: Response) {
     const input = CreateRestaurantSchema.parse(req.body);
-    const requester = this.getRequester(res);
-    const restaurant = await this.createRestaurant.execute({ input, requester });
-    return res
-      .status(201)
-      .json(successResponse(restaurant, "Restaurant created successfully"));
-  }
-
-  async getById(req: Request, res: Response) {
-    const id = RestaurantIdSchema.parse(req.params.id);
-    const restaurant = await this.getRestaurant.query({ id });
-    return res.status(200).json(successResponse(restaurant));
+    const restaurant = await this.createRestaurant.execute({
+      input,
+      requester: this.getRequester(res),
+    });
+    return res.status(201).json(dataResponse(restaurant));
   }
 
   async list(req: Request, res: Response) {
-    const query = RestaurantListQuerySchema.parse(req.query);
+    const query = CursorPaginationSchema.parse(req.query);
     const result = await this.listRestaurants.query(query);
     return res.status(200).json({
-      ...successResponse(result.items),
-      pagination: {
-        page: query.page,
-        limit: query.limit,
-        total: result.total,
-        totalPages: Math.ceil(result.total / query.limit),
-      },
+      data: result.items,
+      pagination: { nextCursor: result.nextCursor },
     });
+  }
+
+  async getById(req: Request, res: Response) {
+    const id = RestaurantIdSchema.parse(req.params.restaurantId);
+    const restaurant = await this.getRestaurant.query({ id });
+    return res.status(200).json(dataResponse(restaurant));
   }
 
   async update(req: Request, res: Response) {
-    const id = RestaurantIdSchema.parse(req.params.id);
+    const id = RestaurantIdSchema.parse(req.params.restaurantId);
     const input = UpdateRestaurantSchema.parse(req.body);
-    const requester = this.getRequester(res);
     const restaurant = await this.updateRestaurant.execute({
       id,
       input,
-      requester,
+      requester: this.getRequester(res),
     });
-    return res
-      .status(200)
-      .json(successResponse(restaurant, "Restaurant updated successfully"));
+    return res.status(200).json(dataResponse(restaurant));
   }
 
-  async updateStatus(req: Request, res: Response) {
-    const id = RestaurantIdSchema.parse(req.params.id);
-    const { status } = UpdateRestaurantStatusSchema.parse(req.body);
-    const requester = this.getRequester(res);
-    const restaurant = await this.updateRestaurantStatus.execute({
-      id,
-      status,
-      requester,
+  async createItem(req: Request, res: Response) {
+    const restaurantId = RestaurantIdSchema.parse(req.params.restaurantId);
+    const input = CreateMenuItemSchema.parse(req.body);
+    const item = await this.createMenuItem.execute({
+      restaurantId,
+      input,
+      requester: this.getRequester(res),
     });
-    return res.status(200).json(
-      successResponse(restaurant, "Restaurant status updated successfully"),
-    );
+    return res.status(201).json(dataResponse(item));
   }
 
-  async delete(req: Request, res: Response) {
-    const id = RestaurantIdSchema.parse(req.params.id);
-    const requester = this.getRequester(res);
-    await this.deleteRestaurant.execute({ id, requester });
-    return res
-      .status(200)
-      .json(successResponse(null, "Restaurant deleted successfully"));
+  async listItems(req: Request, res: Response) {
+    const restaurantId = RestaurantIdSchema.parse(req.params.restaurantId);
+    const query = CursorPaginationSchema.parse(req.query);
+    const result = await this.listMenuItems.query({ restaurantId, ...query });
+    return res.status(200).json({
+      data: result.items,
+      pagination: { nextCursor: result.nextCursor },
+    });
+  }
+
+  async updateItem(req: Request, res: Response) {
+    const restaurantId = RestaurantIdSchema.parse(req.params.restaurantId);
+    const itemId = MenuItemIdSchema.parse(req.params.itemId);
+    const input = UpdateMenuItemSchema.parse(req.body);
+    const item = await this.updateMenuItem.execute({
+      restaurantId,
+      itemId,
+      input,
+      requester: this.getRequester(res),
+    });
+    return res.status(200).json(dataResponse(item));
   }
 }

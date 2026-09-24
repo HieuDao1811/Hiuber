@@ -1,6 +1,10 @@
 export enum RestaurantStatus {
-  PENDING = "PENDING",
-  ACTIVE = "ACTIVE",
-  INACTIVE = "INACTIVE",
-  DELETED = "DELETED",
+  OPEN = "OPEN",
+  CLOSED = "CLOSED",
+}
+
+export enum UserRole {
+  CUSTOMER = "CUSTOMER",
+  RESTAURANT = "RESTAURANT",
+  RIDER = "RIDER",
 }
