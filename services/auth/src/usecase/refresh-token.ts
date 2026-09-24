@@ -11,9 +11,9 @@ import { RefreshTokenSchema } from "../model/user.dto.js";
 import { jwtProvider } from "../share/config/jwt.js";
 import {
   ErrInvalidRefreshToken,
-  ErrUserInactivatedOrDeleted,
+  ErrUserDeleted,
 } from "../model/errors.js";
-import { Status } from "../share/enums/index.js";
+import { UserStatus } from "../share/enums/index.js";
 
 export class RefreshTokenCommandHandler implements IAuthCommandHandler<
   RefreshTokenCommand,
@@ -47,11 +47,10 @@ export class RefreshTokenCommandHandler implements IAuthCommandHandler<
     const user = await this.userRepository.findById(payload.sub);
     if (
       !user ||
-      user.status === Status.DELETED ||
-      user.status === Status.INACTIVED
+      user.status === UserStatus.DELETED
     ) {
       await this.refreshTokenRepository.revoke(refreshToken);
-      throw ErrUserInactivatedOrDeleted;
+      throw ErrUserDeleted;
     }
 
     // Token rotation: token cũ chỉ dùng được một lần.
@@ -66,6 +65,7 @@ export class RefreshTokenCommandHandler implements IAuthCommandHandler<
       userId: user.id,
       token: newRefreshToken,
       expiresAt: jwtProvider.getExpiresAt(newRefreshToken),
+      createdAt: new Date(),
     });
 
     return { accessToken, refreshToken: newRefreshToken };

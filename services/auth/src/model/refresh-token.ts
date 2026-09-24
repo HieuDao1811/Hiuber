@@ -3,4 +3,5 @@ export type RefreshToken = {
   userId: string;
   token: string;
   expiresAt: Date;
+  createdAt: Date;
 };

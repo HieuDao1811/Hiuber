@@ -1,11 +1,10 @@
 export enum Role {
-  CUSTOMER = "customer",
-  OWNER = "owner",
-  RIDER = "rider"
+  CUSTOMER = "CUSTOMER",
+  RESTAURANT = "RESTAURANT",
+  RIDER = "RIDER"
 }
 
-export enum Status {
-  DELETED = "deleted",
-  INACTIVED = "inactived",
-  ACTIVE = "active"
+export enum UserStatus {
+  ACTIVE = "ACTIVE",
+  DELETED = "DELETED"
 }

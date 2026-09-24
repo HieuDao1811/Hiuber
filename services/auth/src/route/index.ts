@@ -9,7 +9,7 @@ import { authenticate } from "../middlewares/auth.middleware.js";
 import {
   AuthRepository,
   RefreshTokenRepository,
-} from "../infras/repository/prisma/index.js";
+} from "../infras/repositories/index.js";
 
 export const setUpAuthHexagon = () => {
   const repository = new AuthRepository();

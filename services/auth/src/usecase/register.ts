@@ -1,16 +1,16 @@
-import { CreateCommand, IAuthCommandHandler, IAuthRepository,  } from "../interface/index.js";
+import { CreateCommand, IAuthCommandHandler, IAuthRepository } from "../interface/index.js";
 import { ErrEmailAlreadyExists, ErrInvalidRegisterData } from "../model/errors.js";
 import { CreateUserSchema } from "../model/user.dto.js";
 import { User } from "../model/user.js";
 import bcrypt from "bcrypt";
 import { v7 } from 'uuid';
-import { Role, Status } from "../share/enums/index.js";
+import { Role, UserStatus } from "../share/enums/index.js";
 
 export class RegisterCommandHandler implements IAuthCommandHandler<CreateCommand, User> {
   constructor(private readonly repository: IAuthRepository) {}
 
   async execute(command: CreateCommand): Promise<User> {
-    const { success, data, error } = CreateUserSchema.safeParse(command);
+    const { success, data } = CreateUserSchema.safeParse(command.command);
     if (!success) {
       throw ErrInvalidRegisterData;
     }
@@ -24,12 +24,10 @@ export class RegisterCommandHandler implements IAuthCommandHandler<CreateCommand
     
     const user: User = {
       id: v7(),
-      fullName: data.fullName,
       email: data.email,
-      phone: data.phone,
       passwordHash,
       role: Role.CUSTOMER,
-      status: Status.ACTIVE,
+      status: UserStatus.ACTIVE,
       createdAt: new Date(),
       updatedAt: new Date()
     }

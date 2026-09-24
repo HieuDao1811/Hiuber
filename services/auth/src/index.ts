@@ -17,7 +17,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-app.use("/v1", setUpAuthHexagon);
+app.use("/v1", setUpAuthHexagon());
 app.use("/internal", setUpInternalAuthHexagon());
 app.use(errorHandler);
 

@@ -27,7 +27,7 @@ export class AuthHttpService {
   }
 
   async register(req: Request, res: Response) {
-    const data = await this.registerCmd.execute(req.body);
+    const data = await this.registerCmd.execute({ command: req.body });
     return res.status(201).json({ data });
   }
 

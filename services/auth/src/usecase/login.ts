@@ -12,9 +12,9 @@ import { LoginSchema } from "../model/user.dto.js";
 import { jwtProvider } from "../share/config/jwt.js";
 import {
   ErrInvalidEmailOrPassword,
-  ErrUserInactivatedOrDeleted,
+  ErrUserDeleted,
 } from "../model/errors.js";
-import { Status } from "../share/enums/index.js";
+import { UserStatus } from "../share/enums/index.js";
 
 export class LoginCommandHandler implements IAuthCommandHandler<
   LoginCommand,
@@ -33,8 +33,8 @@ export class LoginCommandHandler implements IAuthCommandHandler<
       throw ErrInvalidEmailOrPassword;
     }
 
-    if (user.status === Status.DELETED || user.status === Status.INACTIVED) {
-      throw ErrUserInactivatedOrDeleted;
+    if (user.status === UserStatus.DELETED) {
+      throw ErrUserDeleted;
     }
 
     const payload = { sub: user.id, role: user.role };
@@ -45,6 +45,7 @@ export class LoginCommandHandler implements IAuthCommandHandler<
       id: v7(),
       userId: user.id,
       token: refreshToken,
+      createdAt: new Date(),
       expiresAt: jwtProvider.getExpiresAt(refreshToken),
     });
 
