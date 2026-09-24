@@ -1,23 +1,31 @@
 import { CreateUser, Login } from "../model/user.dto.js";
-import { RefreshToken } from "../model/refresh-token.js";
-import { User } from "../model/user.js";
+import {
+  CreateRefreshTokenRecord,
+  RefreshToken,
+} from "../model/refresh-token.js";
+import { CreateUserRecord, User } from "../model/user.js";
 import { Role } from "../share/enums/index.js";
 
 export interface IUseCase {}
 
 export interface ITokenService {
+  generateAccessToken(payload: TokenPayload): string;
+  generateRefreshToken(payload: TokenPayload): string;
   verifyAccessToken(token: string): TokenPayload;
+  verifyRefreshToken(token: string): TokenPayload;
+  getExpiresAt(token: string): Date;
 }
 
 export interface IAuthRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
-  create(data: User): Promise<User>;
+  create(data: CreateUserRecord): Promise<User>;
 }
 
 export interface IRefreshTokenRepository {
-  create(token: RefreshToken): Promise<RefreshToken>;
+  create(token: CreateRefreshTokenRecord): Promise<RefreshToken>;
   findByToken(token: string): Promise<RefreshToken | null>;
+  consume(token: string): Promise<boolean>;
   revoke(token: string): Promise<void>;
   revokeAllByUserId(userId: string): Promise<void>;
 }

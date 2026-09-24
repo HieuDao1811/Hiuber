@@ -1,18 +1,26 @@
-import { GetMeQuery, IAuthQueryHandler, IAuthRepository } from "../interface/index.js";
-import { ErrUserNotFound } from "../model/errors.js";
-import { User } from "../model/user.js";
+import {
+  GetMeQuery,
+  IAuthQueryHandler,
+  IAuthRepository,
+} from "../interface/index.js";
+import { ErrUserDeleted, ErrUserNotFound } from "../model/errors.js";
+import { PublicUser, toPublicUser } from "../model/user.js";
+import { UserStatus } from "../share/enums/index.js";
 
-type GetMeResponse = Omit<User, "passwordHash" | "id" | "role">;
-
-export class GetMeQueryHandler implements IAuthQueryHandler<GetMeQuery, GetMeResponse> {
+export class GetMeQueryHandler
+  implements IAuthQueryHandler<GetMeQuery, PublicUser>
+{
   constructor(private readonly repository: IAuthRepository) {}
-  async query(query: GetMeQuery): Promise<GetMeResponse> {
+  async query(query: GetMeQuery): Promise<PublicUser> {
     const user = await this.repository.findById(query.id);
     if (!user) {
       throw ErrUserNotFound;
     }
 
-    const { id, passwordHash, role, ...otherProps } = user;
-    return otherProps as GetMeResponse;
+    if (user.status === UserStatus.DELETED) {
+      throw ErrUserDeleted;
+    }
+
+    return toPublicUser(user);
   }
 }

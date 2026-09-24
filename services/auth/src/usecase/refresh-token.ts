@@ -1,27 +1,22 @@
-// src/usecase/refresh-token.ts
-import { v7 } from "uuid";
 import {
   IAuthCommandHandler,
   IAuthRepository,
   IRefreshTokenRepository,
+  ITokenService,
   RefreshTokenCommand,
   TokenPair,
 } from "../interface/index.js";
-import { RefreshTokenSchema } from "../model/user.dto.js";
-import { jwtProvider } from "../share/config/jwt.js";
-import {
-  ErrInvalidRefreshToken,
-  ErrUserDeleted,
-} from "../model/errors.js";
+import { ErrInvalidRefreshToken, ErrUserDeleted } from "../model/errors.js";
+import { RefreshTokenSchema, TokenPayloadSchema } from "../model/user.dto.js";
 import { UserStatus } from "../share/enums/index.js";
 
-export class RefreshTokenCommandHandler implements IAuthCommandHandler<
-  RefreshTokenCommand,
-  TokenPair
-> {
+export class RefreshTokenCommandHandler
+  implements IAuthCommandHandler<RefreshTokenCommand, TokenPair>
+{
   constructor(
     private readonly userRepository: IAuthRepository,
     private readonly refreshTokenRepository: IRefreshTokenRepository,
+    private readonly tokenService: ITokenService,
   ) {}
 
   async execute(command: RefreshTokenCommand): Promise<TokenPair> {
@@ -29,7 +24,9 @@ export class RefreshTokenCommandHandler implements IAuthCommandHandler<
 
     let payload;
     try {
-      payload = jwtProvider.verifyRefreshToken(refreshToken);
+      payload = TokenPayloadSchema.parse(
+        this.tokenService.verifyRefreshToken(refreshToken),
+      );
     } catch {
       throw ErrInvalidRefreshToken;
     }
@@ -37,7 +34,11 @@ export class RefreshTokenCommandHandler implements IAuthCommandHandler<
     const savedToken =
       await this.refreshTokenRepository.findByToken(refreshToken);
 
-    if (!savedToken || savedToken.expiresAt <= new Date()) {
+    if (
+      !savedToken ||
+      savedToken.userId !== payload.sub ||
+      savedToken.expiresAt <= new Date()
+    ) {
       if (savedToken) {
         await this.refreshTokenRepository.revoke(refreshToken);
       }
@@ -45,27 +46,25 @@ export class RefreshTokenCommandHandler implements IAuthCommandHandler<
     }
 
     const user = await this.userRepository.findById(payload.sub);
-    if (
-      !user ||
-      user.status === UserStatus.DELETED
-    ) {
+    if (!user || user.status === UserStatus.DELETED) {
       await this.refreshTokenRepository.revoke(refreshToken);
       throw ErrUserDeleted;
     }
 
-    // Token rotation: token cũ chỉ dùng được một lần.
-    await this.refreshTokenRepository.revoke(refreshToken);
+    // deleteMany makes consuming a refresh token atomic: only one concurrent request wins.
+    const consumed = await this.refreshTokenRepository.consume(refreshToken);
+    if (!consumed) {
+      throw ErrInvalidRefreshToken;
+    }
 
     const newPayload = { sub: user.id, role: user.role };
-    const accessToken = jwtProvider.generateAccessToken(newPayload);
-    const newRefreshToken = jwtProvider.generateRefreshToken(newPayload);
+    const accessToken = this.tokenService.generateAccessToken(newPayload);
+    const newRefreshToken = this.tokenService.generateRefreshToken(newPayload);
 
     await this.refreshTokenRepository.create({
-      id: v7(),
       userId: user.id,
       token: newRefreshToken,
-      expiresAt: jwtProvider.getExpiresAt(newRefreshToken),
-      createdAt: new Date(),
+      expiresAt: this.tokenService.getExpiresAt(newRefreshToken),
     });
 
     return { accessToken, refreshToken: newRefreshToken };

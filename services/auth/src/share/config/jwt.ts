@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { randomUUID } from "node:crypto";
 import { StringValue } from "ms";
 import { TokenPayload } from "../../interface/index.js";
 
@@ -12,22 +13,29 @@ export class JwtTokenService {
 
   generateAccessToken(payload: TokenPayload): string {
     return jwt.sign(payload, this.accessSecretKey, {
+      algorithm: "HS256",
       expiresIn: this.accessExpiresIn,
     });
   }
 
   generateRefreshToken(payload: TokenPayload): string {
     return jwt.sign(payload, this.refreshSecretKey, {
+      algorithm: "HS256",
       expiresIn: this.refreshExpiresIn,
+      jwtid: randomUUID(),
     });
   }
 
   verifyAccessToken(token: string): TokenPayload {
-    return jwt.verify(token, this.accessSecretKey) as TokenPayload;
+    return jwt.verify(token, this.accessSecretKey, {
+      algorithms: ["HS256"],
+    }) as TokenPayload;
   }
 
   verifyRefreshToken(token: string): TokenPayload {
-    return jwt.verify(token, this.refreshSecretKey) as TokenPayload;
+    return jwt.verify(token, this.refreshSecretKey, {
+      algorithms: ["HS256"],
+    }) as TokenPayload;
   }
 
   getExpiresAt(token: string): Date {
@@ -41,9 +49,18 @@ export class JwtTokenService {
   }
 }
 
+const requiredEnvironmentVariable = (name: string): string => {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is not configured`);
+  }
+
+  return value;
+};
+
 export const jwtProvider = new JwtTokenService(
-  process.env.ACCESS_TOKEN_SECRET!,
-  process.env.REFRESH_TOKEN_SECRET!,
-  process.env.ACCESS_TOKEN_EXPIRES_IN as StringValue,
-  process.env.REFRESH_TOKEN_EXPIRES_IN as StringValue,
+  requiredEnvironmentVariable("ACCESS_TOKEN_SECRET"),
+  requiredEnvironmentVariable("REFRESH_TOKEN_SECRET"),
+  requiredEnvironmentVariable("ACCESS_TOKEN_EXPIRES_IN") as StringValue,
+  requiredEnvironmentVariable("REFRESH_TOKEN_EXPIRES_IN") as StringValue,
 );

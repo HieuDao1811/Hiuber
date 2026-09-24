@@ -1,15 +1,23 @@
-import { CreateCommand, IAuthCommandHandler, IAuthRepository } from "../interface/index.js";
-import { ErrEmailAlreadyExists, ErrInvalidRegisterData } from "../model/errors.js";
+import {
+  CreateCommand,
+  IAuthCommandHandler,
+  IAuthRepository,
+} from "../interface/index.js";
+import {
+  ErrEmailAlreadyExists,
+  ErrInvalidRegisterData,
+} from "../model/errors.js";
 import { CreateUserSchema } from "../model/user.dto.js";
-import { User } from "../model/user.js";
+import { PublicUser, toPublicUser } from "../model/user.js";
 import bcrypt from "bcrypt";
-import { v7 } from 'uuid';
 import { Role, UserStatus } from "../share/enums/index.js";
 
-export class RegisterCommandHandler implements IAuthCommandHandler<CreateCommand, User> {
+export class RegisterCommandHandler
+  implements IAuthCommandHandler<CreateCommand, PublicUser>
+{
   constructor(private readonly repository: IAuthRepository) {}
 
-  async execute(command: CreateCommand): Promise<User> {
+  async execute(command: CreateCommand): Promise<PublicUser> {
     const { success, data } = CreateUserSchema.safeParse(command.command);
     if (!success) {
       throw ErrInvalidRegisterData;
@@ -22,18 +30,13 @@ export class RegisterCommandHandler implements IAuthCommandHandler<CreateCommand
 
     const passwordHash = await bcrypt.hash(data.password, 10);
     
-    const user: User = {
-      id: v7(),
+    const newUser = await this.repository.create({
       email: data.email,
       passwordHash,
       role: Role.CUSTOMER,
       status: UserStatus.ACTIVE,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
+    });
 
-    const newUser = await this.repository.create(user);
-
-    return newUser;
+    return toPublicUser(newUser);
   }
 }

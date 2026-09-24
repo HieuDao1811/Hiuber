@@ -1,6 +1,10 @@
 import { IAuthRepository } from "../../interface/index.js";
-import type { User as PrismaUser } from "../../generated/prisma/client.js";
-import { User } from "../../model/user.js";
+import {
+  Prisma,
+  type User as PrismaUser,
+} from "../../generated/prisma/client.js";
+import { ErrEmailAlreadyExists } from "../../model/errors.js";
+import { CreateUserRecord, User } from "../../model/user.js";
 import { Role, UserStatus } from "../../share/enums/index.js";
 import { prisma } from "../databases/prisma.js";
 
@@ -23,9 +27,20 @@ export class AuthRepository implements IAuthRepository {
     return user ? toDomainUser(user) : null;
   }
 
-  async create(data: User): Promise<User> {
-    const user = await prisma.user.create({ data });
+  async create(data: CreateUserRecord): Promise<User> {
+    try {
+      const user = await prisma.user.create({ data });
 
-    return toDomainUser(user);
+      return toDomainUser(user);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw ErrEmailAlreadyExists;
+      }
+
+      throw error;
+    }
   }
 }
