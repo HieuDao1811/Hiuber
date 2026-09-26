@@ -40,14 +40,16 @@ export const CreateMenuItemSchema = z
 
 export type CreateMenuItemInput = z.infer<typeof CreateMenuItemSchema>;
 
-export const UpdateMenuItemSchema = z
+export const UpdateMenuItemFieldsSchema = z
   .object({
     name: NameSchema.optional(),
     price: z.number().finite().nonnegative().optional(),
     imageUrl: ImageUrlSchema.optional(),
     isAvailable: z.boolean().optional(),
   })
-  .strict()
+  .strict();
+
+export const UpdateMenuItemSchema = UpdateMenuItemFieldsSchema
   .refine((input) => Object.keys(input).length > 0, {
     message: "At least one field must be provided",
   });

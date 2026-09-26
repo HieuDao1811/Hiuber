@@ -1,7 +1,7 @@
 import {
-  ICommandHandler,
   IMenuItemRepository,
   IRestaurantRepository,
+  UploadImage,
 } from "../interface/index.js";
 import { CreateMenuItemInput } from "../model/restaurant.dto.js";
 import { Requester } from "../model/requester.js";
@@ -12,28 +12,32 @@ export type CreateMenuItemCommand = {
   restaurantId: string;
   input: CreateMenuItemInput;
   requester: Requester;
+  logo?: Buffer;
 };
 
-export class CreateMenuItemCommandHandler
-  implements ICommandHandler<CreateMenuItemCommand, MenuItem>
-{
+export class CreateMenuItemCommandHandler {
   constructor(
     private readonly restaurantRepository: IRestaurantRepository,
     private readonly menuItemRepository: IMenuItemRepository,
+    private readonly uploadImage: UploadImage,
   ) {}
 
   async execute(command: CreateMenuItemCommand): Promise<MenuItem> {
+    const { restaurantId, input, requester, logo } = command;
+
     await findOwnedRestaurantOrThrow(
       this.restaurantRepository,
-      command.restaurantId,
-      command.requester,
+      restaurantId,
+      requester,
     );
 
+    const imageUrl = logo ? await this.uploadImage(logo) : input.imageUrl;
+
     return this.menuItemRepository.create({
-      restaurantId: command.restaurantId,
-      name: command.input.name,
-      price: command.input.price.toString(),
-      imageUrl: command.input.imageUrl,
+      restaurantId,
+      name: input.name,
+      price: input.price.toString(),
+      imageUrl,
     });
   }
 }

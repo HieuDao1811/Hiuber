@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import { PrismaMenuItemRepository } from "./infras/repository/prisma/menu-item.repository.js";
 import { PrismaRestaurantRepository } from "./infras/repository/prisma/restaurant.repository.js";
 import { AuthRpcClient } from "./infras/rpc/auth-rpc-client.js";
+import { uploadImage } from "./infras/storage/cloudinary.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import {
   createRestaurantRouter,
@@ -58,5 +59,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     authService: new AuthRpcClient(
       process.env.AUTH_SERVICE_URL ?? "http://localhost:3000",
     ),
+    uploadImage,
   });
 }

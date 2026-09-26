@@ -1,7 +1,4 @@
-import {
-  ICommandHandler,
-  IRestaurantRepository,
-} from "../interface/index.js";
+import { IRestaurantRepository } from "../interface/index.js";
 import { UpdateRestaurantInput } from "../model/restaurant.dto.js";
 import { Requester } from "../model/requester.js";
 import { Restaurant } from "../model/restaurant.js";
@@ -13,17 +10,13 @@ export type UpdateRestaurantCommand = {
   requester: Requester;
 };
 
-export class UpdateRestaurantCommandHandler
-  implements ICommandHandler<UpdateRestaurantCommand, Restaurant>
-{
+export class UpdateRestaurantCommandHandler {
   constructor(private readonly repository: IRestaurantRepository) {}
 
   async execute(command: UpdateRestaurantCommand): Promise<Restaurant> {
-    await findOwnedRestaurantOrThrow(
-      this.repository,
-      command.id,
-      command.requester,
-    );
-    return this.repository.update(command.id, command.input);
+    const { id, input, requester } = command;
+
+    await findOwnedRestaurantOrThrow(this.repository, id, requester);
+    return this.repository.update(id, input);
   }
 }

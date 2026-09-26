@@ -4,8 +4,10 @@ import {
   IAuthService,
   IMenuItemRepository,
   IRestaurantRepository,
+  UploadImage,
 } from "../interface/index.js";
 import { authenticate, authorize } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/upload.middleware.js";
 import { UserRole } from "../share/enums/index.js";
 import { CreateMenuItemCommandHandler } from "../usecase/create-menu-item.js";
 import { CreateRestaurantCommandHandler } from "../usecase/create-restaurant.js";
@@ -19,30 +21,35 @@ export type RestaurantRouterDependencies = {
   restaurantRepository: IRestaurantRepository;
   menuItemRepository: IMenuItemRepository;
   authService: IAuthService;
+  uploadImage: UploadImage;
 };
 
 export const createRestaurantRouter = (
   dependencies: RestaurantRouterDependencies,
 ) => {
-  const httpService = new RestaurantHttpService(
-    new CreateRestaurantCommandHandler(dependencies.restaurantRepository),
-    new ListRestaurantsQueryHandler(dependencies.restaurantRepository),
-    new GetRestaurantQueryHandler(dependencies.restaurantRepository),
-    new UpdateRestaurantCommandHandler(dependencies.restaurantRepository),
-    new CreateMenuItemCommandHandler(
-      dependencies.restaurantRepository,
-      dependencies.menuItemRepository,
+  const { restaurantRepository, menuItemRepository, authService, uploadImage } =
+    dependencies;
+  const httpService = new RestaurantHttpService({
+    createRestaurant: new CreateRestaurantCommandHandler(restaurantRepository),
+    listRestaurants: new ListRestaurantsQueryHandler(restaurantRepository),
+    getRestaurant: new GetRestaurantQueryHandler(restaurantRepository),
+    updateRestaurant: new UpdateRestaurantCommandHandler(restaurantRepository),
+    createMenuItem: new CreateMenuItemCommandHandler(
+      restaurantRepository,
+      menuItemRepository,
+      uploadImage,
     ),
-    new ListMenuItemsQueryHandler(
-      dependencies.restaurantRepository,
-      dependencies.menuItemRepository,
+    listMenuItems: new ListMenuItemsQueryHandler(
+      restaurantRepository,
+      menuItemRepository,
     ),
-    new UpdateMenuItemCommandHandler(
-      dependencies.restaurantRepository,
-      dependencies.menuItemRepository,
+    updateMenuItem: new UpdateMenuItemCommandHandler(
+      restaurantRepository,
+      menuItemRepository,
+      uploadImage,
     ),
-  );
-  const authenticateRequest = authenticate(dependencies.authService);
+  });
+  const authenticateRequest = authenticate(authService);
   const restaurantOwnerOnly = authorize(UserRole.RESTAURANT);
   const router = Router();
 
@@ -64,6 +71,7 @@ export const createRestaurantRouter = (
     "/:restaurantId/menu-items",
     authenticateRequest,
     restaurantOwnerOnly,
+    upload.single("logo"),
     httpService.createItem.bind(httpService),
   );
   router.get(
@@ -74,6 +82,7 @@ export const createRestaurantRouter = (
     "/:restaurantId/menu-items/:itemId",
     authenticateRequest,
     restaurantOwnerOnly,
+    upload.single("logo"),
     httpService.updateItem.bind(httpService),
   );
 

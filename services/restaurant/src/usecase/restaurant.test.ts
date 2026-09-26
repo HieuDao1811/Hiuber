@@ -32,6 +32,8 @@ const owner: Requester = {
   role: UserRole.RESTAURANT,
 };
 
+const logoUrl = "https://res.cloudinary.com/demo/image/upload/logo.png";
+
 const createRestaurant = (
   overrides: Partial<Restaurant> = {},
 ): Restaurant => ({
@@ -40,6 +42,18 @@ const createRestaurant = (
   name: "Cơm Nhà Sáng",
   address: "123 Nguyễn Văn Linh, Đà Nẵng",
   status: RestaurantStatus.OPEN,
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  ...overrides,
+});
+
+const createMenuItem = (overrides: Partial<MenuItem> = {}): MenuItem => ({
+  id: randomUUID(),
+  restaurantId: randomUUID(),
+  name: "Cơm gà",
+  price: "45000",
+  imageUrl: null,
+  isAvailable: true,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   ...overrides,
@@ -123,6 +137,8 @@ class MemoryMenuItemRepository implements IMenuItemRepository {
   }
 }
 
+const uploadImage = async () => logoUrl;
+
 test("restaurant input trims text and rejects unknown or owner fields", () => {
   assert.deepEqual(
     CreateRestaurantSchema.parse({ name: "  Cơm gà  ", address: "  Đà Nẵng  " }),
@@ -187,6 +203,7 @@ test("menu item price crosses the repository boundary as a string", async () => 
   const handler = new CreateMenuItemCommandHandler(
     new MemoryRestaurantRepository([restaurant]),
     menuRepository,
+    uploadImage,
   );
 
   const item = await handler.execute({
@@ -206,19 +223,13 @@ test("menu update accepts null imageUrl and rejects an item from another restaur
 
   const restaurant = createRestaurant();
   const otherRestaurantId = randomUUID();
-  const item: MenuItem = {
-    id: randomUUID(),
+  const item = createMenuItem({
     restaurantId: otherRestaurantId,
-    name: "Cơm gà",
-    price: "45000",
-    imageUrl: null,
-    isAvailable: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  });
   const handler = new UpdateMenuItemCommandHandler(
     new MemoryRestaurantRepository([restaurant]),
     new MemoryMenuItemRepository([item]),
+    uploadImage,
   );
 
   await assert.rejects(
@@ -230,4 +241,61 @@ test("menu update accepts null imageUrl and rejects an item from another restaur
     }),
     MenuItemNotFoundError,
   );
+});
+
+test("menu logo is uploaded after ownership is verified", async () => {
+  const restaurant = createRestaurant();
+  const menuRepository = new MemoryMenuItemRepository();
+  let uploadCount = 0;
+  const handler = new CreateMenuItemCommandHandler(
+    new MemoryRestaurantRepository([restaurant]),
+    menuRepository,
+    async () => {
+      uploadCount += 1;
+      return logoUrl;
+    },
+  );
+
+  const item = await handler.execute({
+    restaurantId: restaurant.id,
+    requester: owner,
+    input: { name: "Cơm gà", price: 45000 },
+    logo: Buffer.from("image"),
+  });
+
+  assert.equal(uploadCount, 1);
+  assert.equal(item.imageUrl, logoUrl);
+
+  await assert.rejects(
+    handler.execute({
+      restaurantId: restaurant.id,
+      requester: { ...owner, sub: randomUUID() },
+      input: { name: "Phở", price: 50000 },
+      logo: Buffer.from("image"),
+    }),
+    RestaurantOwnershipError,
+  );
+  assert.equal(uploadCount, 1);
+});
+
+test("menu update accepts a logo without other fields", async () => {
+  const restaurant = createRestaurant();
+  const item = createMenuItem({
+    restaurantId: restaurant.id,
+  });
+  const handler = new UpdateMenuItemCommandHandler(
+    new MemoryRestaurantRepository([restaurant]),
+    new MemoryMenuItemRepository([item]),
+    uploadImage,
+  );
+
+  const updated = await handler.execute({
+    restaurantId: restaurant.id,
+    itemId: item.id,
+    requester: owner,
+    input: {},
+    logo: Buffer.from("image"),
+  });
+
+  assert.equal(updated.imageUrl, logoUrl);
 });

@@ -1,7 +1,7 @@
 import {
-  ICommandHandler,
   IMenuItemRepository,
   IRestaurantRepository,
+  UploadImage,
   UpdateMenuItemData,
 } from "../interface/index.js";
 import { MenuItemNotFoundError } from "../model/errors.js";
@@ -15,33 +15,38 @@ export type UpdateMenuItemCommand = {
   itemId: string;
   input: UpdateMenuItemInput;
   requester: Requester;
+  logo?: Buffer;
 };
 
-export class UpdateMenuItemCommandHandler
-  implements ICommandHandler<UpdateMenuItemCommand, MenuItem>
-{
+export class UpdateMenuItemCommandHandler {
   constructor(
     private readonly restaurantRepository: IRestaurantRepository,
     private readonly menuItemRepository: IMenuItemRepository,
+    private readonly uploadImage: UploadImage,
   ) {}
 
   async execute(command: UpdateMenuItemCommand): Promise<MenuItem> {
+    const { restaurantId, itemId, input, requester, logo } = command;
+
     await findOwnedRestaurantOrThrow(
       this.restaurantRepository,
-      command.restaurantId,
-      command.requester,
+      restaurantId,
+      requester,
     );
 
-    const item = await this.menuItemRepository.findById(command.itemId);
-    if (!item || item.restaurantId !== command.restaurantId) {
+    const item = await this.menuItemRepository.findById(itemId);
+    if (!item || item.restaurantId !== restaurantId) {
       throw new MenuItemNotFoundError();
     }
 
-    const { price, ...otherFields } = command.input;
+    const imageUrl = logo ? await this.uploadImage(logo) : input.imageUrl;
+
+    const { price, ...otherFields } = input;
     const update: UpdateMenuItemData = {
       ...otherFields,
       ...(price === undefined ? {} : { price: price.toString() }),
+      ...(imageUrl === undefined ? {} : { imageUrl }),
     };
-    return this.menuItemRepository.update(command.itemId, update);
+    return this.menuItemRepository.update(itemId, update);
   }
 }

@@ -49,14 +49,8 @@ export interface IMenuItemRepository {
   update(id: string, data: UpdateMenuItemData): Promise<MenuItem>;
 }
 
+export type UploadImage = (buffer: Buffer) => Promise<string>;
+
 export interface IAuthService {
   verifyAccessToken(accessToken: string): Promise<Requester>;
-}
-
-export interface ICommandHandler<Command, Result> {
-  execute(command: Command): Promise<Result>;
-}
-
-export interface IQueryHandler<Query, Result> {
-  query(query: Query): Promise<Result>;
 }
