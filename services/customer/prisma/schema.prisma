@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model CustomerProfile {
+  id        String            @id @default(uuid()) @db.Uuid
+  userId    String            @unique @db.Uuid
+  fullName  String
+  phone     String?
+  addresses CustomerAddress[]
+
+  @@map("customer_profiles")
+}
+
+model CustomerAddress {
+  id            String          @id @default(uuid()) @db.Uuid
+  customerId    String          @db.Uuid
+  label         String
+  receiverName  String
+  receiverPhone String
+  address       String
+  isDefault     Boolean         @default(false)
+  customer      CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_addresses")
+}
