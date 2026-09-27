@@ -1,14 +1,14 @@
 import type { ICustomerProfileRepository } from "../interface/repository/customer-profile.repository.js";
-import { Errors } from "../shared/app-error.js";
+import { CustomerProfileNotFoundError } from "../model/errors.js";
 
 export const getCustomerProfile = async (
-  profiles: ICustomerProfileRepository,
+  repository: ICustomerProfileRepository,
   userId: string,
 ) => {
-  const profile = await profiles.findByUserId(userId);
+  const profile = await repository.findByUserId(userId);
 
   if (!profile) {
-    throw Errors.profileNotFound();
+    throw new CustomerProfileNotFoundError();
   }
 
   return profile;

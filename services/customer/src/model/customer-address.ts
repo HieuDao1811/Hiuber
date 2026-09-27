@@ -1,47 +1,55 @@
 import { z } from "zod";
 
-const addressFields = {
-  label: z.string().trim().min(1).max(50),
-  receiverName: z.string().trim().min(1).max(100),
-  receiverPhone: z.string().trim().regex(/^[0-9+()\-\s]{7,20}$/),
-  address: z.string().trim().min(1).max(300),
-};
-
-export const AddressIdSchema = z.uuid();
+const labelSchema = z.string().trim().min(1).max(50).nullable();
+const receiverNameSchema = z.string().trim().min(1).max(100);
+const receiverPhoneSchema = z
+  .string()
+  .trim()
+  .regex(/^[0-9+()\-\s]{7,20}$/);
+const addressSchema = z.string().trim().min(1).max(300);
 
 export const AddressIdParamsSchema = z
-  .object({ addressId: AddressIdSchema })
+  .object({ addressId: z.uuid() })
   .strict();
 
 export const CreateCustomerAddressSchema = z
   .object({
-    ...addressFields,
-    isDefault: z.boolean().optional().default(false),
+    label: labelSchema.optional(),
+    receiverName: receiverNameSchema,
+    receiverPhone: receiverPhoneSchema,
+    address: addressSchema,
   })
   .strict();
 
 export const UpdateCustomerAddressSchema = z
   .object({
-    label: addressFields.label.optional(),
-    receiverName: addressFields.receiverName.optional(),
-    receiverPhone: addressFields.receiverPhone.optional(),
-    address: addressFields.address.optional(),
-    isDefault: z.boolean().optional(),
+    label: labelSchema.optional(),
+    receiverName: receiverNameSchema.optional(),
+    receiverPhone: receiverPhoneSchema.optional(),
+    address: addressSchema.optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required",
   });
 
+export const EmptyBodySchema = z.object({}).strict();
+
 export interface CustomerAddress {
   id: string;
   customerId: string;
-  label: string;
+  label: string | null;
   receiverName: string;
   receiverPhone: string;
   address: string;
   isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export type CreateAddressInput = z.infer<typeof CreateCustomerAddressSchema>;
-export type UpdateAddressInput = z.infer<typeof UpdateCustomerAddressSchema>;
+export type CreateCustomerAddressInput = z.infer<
+  typeof CreateCustomerAddressSchema
+>;
+export type UpdateCustomerAddressInput = z.infer<
+  typeof UpdateCustomerAddressSchema
+>;

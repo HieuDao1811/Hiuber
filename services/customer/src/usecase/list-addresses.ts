@@ -4,13 +4,15 @@ import type { ICustomerProfileRepository } from "../interface/repository/custome
 import type { CustomerAddress } from "../model/customer-address.js";
 import { getCustomerProfile } from "./customer-access.js";
 
-export class ListAddresses implements QueryHandler<string, CustomerAddress[]> {
+export class ListAddressesQueryHandler
+  implements QueryHandler<string, CustomerAddress[]>
+{
   constructor(
     private readonly profiles: ICustomerProfileRepository,
     private readonly addresses: ICustomerAddressRepository,
   ) {}
 
-  async execute(userId: string): Promise<CustomerAddress[]> {
+  async query(userId: string): Promise<CustomerAddress[]> {
     const profile = await getCustomerProfile(this.profiles, userId);
     return this.addresses.findManyByCustomerId(profile.id);
   }

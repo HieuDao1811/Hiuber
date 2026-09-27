@@ -1,3 +1,3 @@
 export interface QueryHandler<Query, Result> {
-  execute(query: Query): Promise<Result>;
+  query(query: Query): Promise<Result>;
 }

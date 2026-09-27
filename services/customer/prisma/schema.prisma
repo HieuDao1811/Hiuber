@@ -12,6 +12,8 @@ model CustomerProfile {
   userId    String            @unique @db.Uuid
   fullName  String
   phone     String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
   addresses CustomerAddress[]
 
   @@map("customer_profiles")
@@ -20,11 +22,13 @@ model CustomerProfile {
 model CustomerAddress {
   id            String          @id @default(uuid()) @db.Uuid
   customerId    String          @db.Uuid
-  label         String
+  label         String?
   receiverName  String
   receiverPhone String
   address       String
   isDefault     Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   customer      CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([customerId])

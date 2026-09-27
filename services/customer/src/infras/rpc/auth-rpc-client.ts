@@ -1,43 +1,48 @@
-import { z } from "zod";
-import type { IAuthRpc } from "../../interface/rpc/auth-rpc.js";
-import { UserRole } from "../../interface/requester.js";
-import { Errors } from "../../shared/app-error.js";
+import type { IAuthService } from "../../interface/auth-service.js";
+import {
+  AuthServiceUnavailableError,
+  InvalidAccessTokenError,
+} from "../../model/errors.js";
+import { AuthVerifyResponseSchema } from "../../model/requester.js";
 
-const AuthPayloadSchema = z.object({
-  sub: z.uuid(),
-  role: z.enum(UserRole),
-});
+export class AuthRpcClient implements IAuthService {
+  private readonly verifyUrl: URL;
 
-export class AuthRpcClient implements IAuthRpc {
-  constructor(private readonly authServiceUrl: string) {}
+  constructor(
+    authServiceUrl: string,
+    private readonly requestTimeoutMs = 5_000,
+    private readonly fetcher: typeof fetch = fetch,
+  ) {
+    this.verifyUrl = new URL("/internal/auth/verify", authServiceUrl);
+  }
 
-  async verify(accessToken: string) {
-    let response: globalThis.Response;
+  async verifyAccessToken(accessToken: string) {
+    let response: Response;
 
     try {
-      response = await fetch(`${this.authServiceUrl}/internal/auth/verify`, {
+      response = await this.fetcher(this.verifyUrl, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ accessToken }),
-        signal: AbortSignal.timeout(5_000),
+        signal: AbortSignal.timeout(this.requestTimeoutMs),
       });
     } catch {
-      throw Errors.authUnavailable();
+      throw new AuthServiceUnavailableError();
     }
 
     if (response.status === 401) {
-      throw Errors.invalidAccessToken();
+      throw new InvalidAccessTokenError();
     }
 
     if (!response.ok) {
-      throw Errors.authUnavailable();
+      throw new AuthServiceUnavailableError();
     }
 
     try {
-      const payload = AuthPayloadSchema.parse(await response.json());
+      const payload = AuthVerifyResponseSchema.parse(await response.json());
       return { userId: payload.sub, role: payload.role };
     } catch {
-      throw Errors.authUnavailable();
+      throw new AuthServiceUnavailableError();
     }
   }
 }

@@ -1,11 +1,9 @@
+import type { PrismaClient } from "../../../generated/prisma/client.js";
 import type {
   CreateCustomerAddressData,
   ICustomerAddressRepository,
   UpdateCustomerAddressData,
 } from "../../../interface/repository/customer-address.repository.js";
-import type { PrismaClient } from "../../../generated/prisma/client.js";
-
-const transactionOptions = { isolationLevel: "Serializable" as const };
 
 export class PrismaCustomerAddressRepository
   implements ICustomerAddressRepository
@@ -15,23 +13,12 @@ export class PrismaCustomerAddressRepository
   findManyByCustomerId(customerId: string) {
     return this.database.customerAddress.findMany({
       where: { customerId },
-      orderBy: [{ isDefault: "desc" }, { id: "asc" }],
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     });
   }
 
   create(data: CreateCustomerAddressData) {
-    if (!data.isDefault) {
-      return this.database.customerAddress.create({ data });
-    }
-
-    return this.database.$transaction(async (transaction) => {
-      await transaction.customerAddress.updateMany({
-        where: { customerId: data.customerId, isDefault: true },
-        data: { isDefault: false },
-      });
-
-      return transaction.customerAddress.create({ data });
-    }, transactionOptions);
+    return this.database.customerAddress.create({ data });
   }
 
   updateOwned(
@@ -40,26 +27,19 @@ export class PrismaCustomerAddressRepository
     data: UpdateCustomerAddressData,
   ) {
     return this.database.$transaction(async (transaction) => {
-      const ownedAddress = await transaction.customerAddress.findFirst({
+      const result = await transaction.customerAddress.updateMany({
         where: { id: addressId, customerId },
+        data,
       });
 
-      if (!ownedAddress) {
+      if (result.count === 0) {
         return null;
       }
 
-      if (data.isDefault) {
-        await transaction.customerAddress.updateMany({
-          where: { customerId, isDefault: true },
-          data: { isDefault: false },
-        });
-      }
-
-      return transaction.customerAddress.update({
-        where: { id: addressId },
-        data,
+      return transaction.customerAddress.findFirst({
+        where: { id: addressId, customerId },
       });
-    }, transactionOptions);
+    });
   }
 
   async deleteOwned(addressId: string, customerId: string) {
@@ -72,6 +52,13 @@ export class PrismaCustomerAddressRepository
 
   setDefault(addressId: string, customerId: string) {
     return this.database.$transaction(async (transaction) => {
+      await transaction.$queryRaw`
+        SELECT "id"
+        FROM "customer_profiles"
+        WHERE "id" = ${customerId}::uuid
+        FOR UPDATE
+      `;
+
       const ownedAddress = await transaction.customerAddress.findFirst({
         where: { id: addressId, customerId },
       });
@@ -85,10 +72,18 @@ export class PrismaCustomerAddressRepository
         data: { isDefault: false },
       });
 
-      return transaction.customerAddress.update({
-        where: { id: addressId },
+      const result = await transaction.customerAddress.updateMany({
+        where: { id: addressId, customerId },
         data: { isDefault: true },
       });
-    }, transactionOptions);
+
+      if (result.count === 0) {
+        return null;
+      }
+
+      return transaction.customerAddress.findFirst({
+        where: { id: addressId, customerId },
+      });
+    });
   }
 }

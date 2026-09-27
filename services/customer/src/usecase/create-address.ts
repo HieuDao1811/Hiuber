@@ -1,19 +1,18 @@
-import { randomUUID } from "node:crypto";
 import type { CommandHandler } from "../interface/command-handler.js";
 import type { ICustomerAddressRepository } from "../interface/repository/customer-address.repository.js";
 import type { ICustomerProfileRepository } from "../interface/repository/customer-profile.repository.js";
 import type {
-  CreateAddressInput,
+  CreateCustomerAddressInput,
   CustomerAddress,
 } from "../model/customer-address.js";
 import { getCustomerProfile } from "./customer-access.js";
 
 interface CreateAddressCommand {
   userId: string;
-  input: CreateAddressInput;
+  input: CreateCustomerAddressInput;
 }
 
-export class CreateAddress
+export class CreateAddressCommandHandler
   implements CommandHandler<CreateAddressCommand, CustomerAddress>
 {
   constructor(
@@ -25,9 +24,11 @@ export class CreateAddress
     const profile = await getCustomerProfile(this.profiles, command.userId);
 
     return this.addresses.create({
-      id: randomUUID(),
       customerId: profile.id,
-      ...command.input,
+      label: command.input.label ?? null,
+      receiverName: command.input.receiverName,
+      receiverPhone: command.input.receiverPhone,
+      address: command.input.address,
     });
   }
 }

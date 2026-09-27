@@ -7,7 +7,12 @@ const phoneSchema = z
   .regex(/^[0-9+()\-\s]{7,20}$/)
   .nullable();
 
-export const CustomerIdSchema = z.uuid();
+export const CreateCustomerProfileSchema = z
+  .object({
+    fullName: fullNameSchema,
+    phone: phoneSchema.optional(),
+  })
+  .strict();
 
 export const UpdateCustomerProfileSchema = z
   .object({
@@ -24,6 +29,13 @@ export interface CustomerProfile {
   userId: string;
   fullName: string;
   phone: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-export type UpdateMyProfileInput = z.infer<typeof UpdateCustomerProfileSchema>;
+export type CreateCustomerProfileInput = z.infer<
+  typeof CreateCustomerProfileSchema
+>;
+export type UpdateCustomerProfileInput = z.infer<
+  typeof UpdateCustomerProfileSchema
+>;

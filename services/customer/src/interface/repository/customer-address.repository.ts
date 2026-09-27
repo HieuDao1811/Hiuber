@@ -1,21 +1,18 @@
 import type { CustomerAddress } from "../../model/customer-address.js";
 
 export interface CreateCustomerAddressData {
-  id: string;
   customerId: string;
-  label: string;
+  label: string | null;
   receiverName: string;
   receiverPhone: string;
   address: string;
-  isDefault: boolean;
 }
 
 export interface UpdateCustomerAddressData {
-  label?: string;
+  label?: string | null;
   receiverName?: string;
   receiverPhone?: string;
   address?: string;
-  isDefault?: boolean;
 }
 
 export interface ICustomerAddressRepository {

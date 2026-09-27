@@ -2,80 +2,43 @@ import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import { CustomerController } from "./controller/customer.controller.js";
+import type { IAuthService } from "./interface/auth-service.js";
 import type { ICustomerAddressRepository } from "./interface/repository/customer-address.repository.js";
 import type { ICustomerProfileRepository } from "./interface/repository/customer-profile.repository.js";
-import type { IAuthRpc } from "./interface/rpc/auth-rpc.js";
-import { errorHandler } from "./middleware/error-handler.js";
+import { errorHandler } from "./middleware/error.middleware.js";
 import { createCustomerRouter } from "./route/customer.route.js";
 import { AppError } from "./shared/app-error.js";
-import { sendData } from "./shared/response.js";
-import { CreateAddress } from "./usecase/create-address.js";
-import { DeleteAddress } from "./usecase/delete-address.js";
-import { GetMyProfile } from "./usecase/get-my-profile.js";
-import { ListAddresses } from "./usecase/list-addresses.js";
-import { SetDefaultAddress } from "./usecase/set-default-address.js";
-import { UpdateAddress } from "./usecase/update-address.js";
-import { UpdateMyProfile } from "./usecase/update-my-profile.js";
+import { dataResponse } from "./shared/http-response.js";
 
-interface CustomerAppDependencies {
+export interface CustomerAppDependencies {
   profiles: ICustomerProfileRepository;
   addresses: ICustomerAddressRepository;
-  authRpc: IAuthRpc;
+  authService: IAuthService;
+  frontendOrigin?: string;
 }
 
 export const createCustomerApp = (dependencies: CustomerAppDependencies) => {
   const app = express();
 
   app.use(helmet());
-  app.use(cors());
   app.use(
-    rateLimit({
-      windowMs: 60_000,
-      limit: 100,
-      standardHeaders: "draft-8",
-      legacyHeaders: false,
+    cors({
+      origin: dependencies.frontendOrigin ?? "http://localhost:5173",
     }),
   );
   app.use(express.json({ limit: "100kb" }));
+  app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));
 
-  app.get("/health", (_request, response) =>
-    sendData(response, { service: "customer", status: "ok" }),
-  );
-
-  const controller = new CustomerController({
-    getMyProfile: new GetMyProfile(dependencies.profiles),
-    updateMyProfile: new UpdateMyProfile(dependencies.profiles),
-    listAddresses: new ListAddresses(
-      dependencies.profiles,
-      dependencies.addresses,
-    ),
-    createAddress: new CreateAddress(
-      dependencies.profiles,
-      dependencies.addresses,
-    ),
-    updateAddress: new UpdateAddress(
-      dependencies.profiles,
-      dependencies.addresses,
-    ),
-    deleteAddress: new DeleteAddress(
-      dependencies.profiles,
-      dependencies.addresses,
-    ),
-    setDefaultAddress: new SetDefaultAddress(
-      dependencies.profiles,
-      dependencies.addresses,
-    ),
+  app.get("/health", (_request, response) => {
+    response
+      .status(200)
+      .json(dataResponse({ service: "customer", status: "ok" }));
   });
 
-  app.use(
-    "/v1/customers",
-    createCustomerRouter(controller, dependencies.authRpc),
-  );
-
-  app.use((_request, _response, next) =>
-    next(new AppError(404, "ROUTE_NOT_FOUND", "Route was not found")),
-  );
+  app.use("/v1/customers", createCustomerRouter(dependencies));
+  app.use((_request, _response, next) => {
+    next(new AppError("ROUTE_NOT_FOUND", "Route not found", 404));
+  });
   app.use(errorHandler);
 
   return app;

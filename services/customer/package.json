@@ -1,21 +1,23 @@
 {
   "name": "customer",
   "version": "1.0.0",
-  "main": "dist/server.js",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "test": "tsx src/usecase/customer.test.ts",
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "start": "node dist/server.js",
-    "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
-    "db:generate": "prisma generate",
-    "db:validate": "prisma validate"
+    "start": "node dist/index.js",
+    "db:format": "prisma format --config prisma7.config.ts",
+    "db:migrate": "prisma migrate dev --config prisma7.config.ts",
+    "db:deploy": "prisma migrate deploy --config prisma7.config.ts",
+    "db:generate": "prisma generate --config prisma7.config.ts",
+    "db:validate": "prisma validate --config prisma7.config.ts"
   },
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",

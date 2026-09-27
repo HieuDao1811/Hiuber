@@ -3,18 +3,18 @@ import type { ICustomerAddressRepository } from "../interface/repository/custome
 import type { ICustomerProfileRepository } from "../interface/repository/customer-profile.repository.js";
 import type {
   CustomerAddress,
-  UpdateAddressInput,
+  UpdateCustomerAddressInput,
 } from "../model/customer-address.js";
-import { Errors } from "../shared/app-error.js";
+import { CustomerAddressNotFoundError } from "../model/errors.js";
 import { getCustomerProfile } from "./customer-access.js";
 
 interface UpdateAddressCommand {
   userId: string;
   addressId: string;
-  input: UpdateAddressInput;
+  input: UpdateCustomerAddressInput;
 }
 
-export class UpdateAddress
+export class UpdateAddressCommandHandler
   implements CommandHandler<UpdateAddressCommand, CustomerAddress>
 {
   constructor(
@@ -31,7 +31,7 @@ export class UpdateAddress
     );
 
     if (!address) {
-      throw Errors.addressNotFound();
+      throw new CustomerAddressNotFoundError();
     }
 
     return address;

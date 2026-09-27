@@ -1,9 +1,12 @@
+import type { PrismaClient } from "../../../generated/prisma/client.js";
 import type {
   CreateCustomerProfileData,
   ICustomerProfileRepository,
   UpdateCustomerProfileData,
 } from "../../../interface/repository/customer-profile.repository.js";
-import type { PrismaClient } from "../../../generated/prisma/client.js";
+
+const isUniqueConstraintError = (error: unknown): boolean =>
+  typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
 
 export class PrismaCustomerProfileRepository
   implements ICustomerProfileRepository
@@ -14,14 +17,27 @@ export class PrismaCustomerProfileRepository
     return this.database.customerProfile.findUnique({ where: { userId } });
   }
 
-  create(data: CreateCustomerProfileData) {
-    return this.database.customerProfile.create({ data });
+  async create(data: CreateCustomerProfileData) {
+    try {
+      return await this.database.customerProfile.create({ data });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return null;
+      }
+      throw error;
+    }
   }
 
-  updateByUserId(userId: string, data: UpdateCustomerProfileData) {
-    return this.database.customerProfile.update({
+  async updateByUserId(userId: string, data: UpdateCustomerProfileData) {
+    const result = await this.database.customerProfile.updateMany({
       where: { userId },
       data,
     });
+
+    if (result.count === 0) {
+      return null;
+    }
+
+    return this.database.customerProfile.findUnique({ where: { userId } });
   }
 }

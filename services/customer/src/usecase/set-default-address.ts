@@ -2,7 +2,7 @@ import type { CommandHandler } from "../interface/command-handler.js";
 import type { ICustomerAddressRepository } from "../interface/repository/customer-address.repository.js";
 import type { ICustomerProfileRepository } from "../interface/repository/customer-profile.repository.js";
 import type { CustomerAddress } from "../model/customer-address.js";
-import { Errors } from "../shared/app-error.js";
+import { CustomerAddressNotFoundError } from "../model/errors.js";
 import { getCustomerProfile } from "./customer-access.js";
 
 interface SetDefaultAddressCommand {
@@ -10,7 +10,7 @@ interface SetDefaultAddressCommand {
   addressId: string;
 }
 
-export class SetDefaultAddress
+export class SetDefaultAddressCommandHandler
   implements CommandHandler<SetDefaultAddressCommand, CustomerAddress>
 {
   constructor(
@@ -26,7 +26,7 @@ export class SetDefaultAddress
     );
 
     if (!address) {
-      throw Errors.addressNotFound();
+      throw new CustomerAddressNotFoundError();
     }
 
     return address;

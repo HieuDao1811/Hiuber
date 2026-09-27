@@ -1,7 +1,7 @@
 import type { CommandHandler } from "../interface/command-handler.js";
 import type { ICustomerAddressRepository } from "../interface/repository/customer-address.repository.js";
 import type { ICustomerProfileRepository } from "../interface/repository/customer-profile.repository.js";
-import { Errors } from "../shared/app-error.js";
+import { CustomerAddressNotFoundError } from "../model/errors.js";
 import { getCustomerProfile } from "./customer-access.js";
 
 interface DeleteAddressCommand {
@@ -9,7 +9,9 @@ interface DeleteAddressCommand {
   addressId: string;
 }
 
-export class DeleteAddress implements CommandHandler<DeleteAddressCommand, void> {
+export class DeleteAddressCommandHandler
+  implements CommandHandler<DeleteAddressCommand, void>
+{
   constructor(
     private readonly profiles: ICustomerProfileRepository,
     private readonly addresses: ICustomerAddressRepository,
@@ -23,7 +25,7 @@ export class DeleteAddress implements CommandHandler<DeleteAddressCommand, void>
     );
 
     if (!deleted) {
-      throw Errors.addressNotFound();
+      throw new CustomerAddressNotFoundError();
     }
   }
 }

@@ -6,12 +6,14 @@ import { PrismaCustomerProfileRepository } from "./infras/repository/prisma/cust
 import { AuthRpcClient } from "./infras/rpc/auth-rpc-client.js";
 
 const port = Number(process.env.PORT ?? 3001);
-const authServiceUrl = process.env.AUTH_SERVICE_URL ?? "http://localhost:3000";
 
 const app = createCustomerApp({
   profiles: new PrismaCustomerProfileRepository(prisma),
   addresses: new PrismaCustomerAddressRepository(prisma),
-  authRpc: new AuthRpcClient(authServiceUrl),
+  authService: new AuthRpcClient(
+    process.env.AUTH_SERVICE_URL ?? "http://localhost:3000",
+  ),
+  frontendOrigin: process.env.FRONTEND_ORIGIN,
 });
 
 app.listen(port, () => {

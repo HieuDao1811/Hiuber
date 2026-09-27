@@ -1,7 +1,6 @@
 import type { CustomerProfile } from "../../model/customer-profile.js";
 
 export interface CreateCustomerProfileData {
-  id: string;
   userId: string;
   fullName: string;
   phone: string | null;
@@ -14,9 +13,9 @@ export interface UpdateCustomerProfileData {
 
 export interface ICustomerProfileRepository {
   findByUserId(userId: string): Promise<CustomerProfile | null>;
-  create(data: CreateCustomerProfileData): Promise<CustomerProfile>;
+  create(data: CreateCustomerProfileData): Promise<CustomerProfile | null>;
   updateByUserId(
     userId: string,
     data: UpdateCustomerProfileData,
-  ): Promise<CustomerProfile>;
+  ): Promise<CustomerProfile | null>;
 }

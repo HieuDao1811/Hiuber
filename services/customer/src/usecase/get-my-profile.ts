@@ -3,10 +3,12 @@ import type { ICustomerProfileRepository } from "../interface/repository/custome
 import type { CustomerProfile } from "../model/customer-profile.js";
 import { getCustomerProfile } from "./customer-access.js";
 
-export class GetMyProfile implements QueryHandler<string, CustomerProfile> {
-  constructor(private readonly profiles: ICustomerProfileRepository) {}
+export class GetMyProfileQueryHandler
+  implements QueryHandler<string, CustomerProfile>
+{
+  constructor(private readonly repository: ICustomerProfileRepository) {}
 
-  execute(userId: string): Promise<CustomerProfile> {
-    return getCustomerProfile(this.profiles, userId);
+  query(userId: string): Promise<CustomerProfile> {
+    return getCustomerProfile(this.repository, userId);
   }
 }
