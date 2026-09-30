@@ -6,12 +6,19 @@ import type { IPaymentProvider, ProviderResult } from "../interface/payment-prov
 import type {
   ClaimPaymentData,
   IPaymentRepository,
+  ProviderEventData,
 } from "../interface/payment-repository.js";
+import {
+  MockPaymentProvider,
+  signMockWebhook,
+} from "../infras/provider/mock-payment-provider.js";
 import { CreatePaymentSchema } from "../model/payment.dto.js";
 import type { Payment } from "../model/payment.js";
 import {
   ForbiddenError,
   IdempotencyConflictError,
+  InvalidProviderEventError,
+  InvalidProviderSignatureError,
   PaymentAlreadyExistsError,
   PaymentNotFoundError,
 } from "../model/errors.js";
@@ -20,15 +27,18 @@ import {
   OrderStatus,
   OrderSyncStatus,
   PaymentMethod,
+  PaymentResolutionStatus,
   PaymentStatus,
 } from "../share/enums/index.js";
 import { CreatePaymentCommandHandler } from "./create-payment.js";
 import { OrderPaymentSynchronizer } from "./order-payment-synchronizer.js";
 import { GetPaymentQueryHandler } from "./get-payment.js";
+import { ProcessProviderWebhookCommandHandler } from "./process-provider-webhook.js";
 
 const CUSTOMER_ID = "11111111-1111-4111-8111-111111111111";
 const OTHER_CUSTOMER_ID = "22222222-2222-4222-8222-222222222222";
 const ORDER_ID = "33333333-3333-4333-8333-333333333333";
+const MOCK_WEBHOOK_SECRET = "test-mock-webhook-secret-at-least-32-chars";
 
 class MemoryPaymentRepository implements IPaymentRepository {
   readonly records: Payment[] = [];
@@ -68,6 +78,8 @@ class MemoryPaymentRepository implements IPaymentRepository {
       orderSyncAttempts: 0,
       nextOrderSyncAt: data.status === PaymentStatus.PENDING ? now : null,
       orderSyncedAt: null,
+      resolutionStatus: PaymentResolutionStatus.NONE,
+      resolutionReason: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -90,18 +102,67 @@ class MemoryPaymentRepository implements IPaymentRepository {
     return payment;
   }
 
-  async markFailed(id: string, failureCode: string) {
+  async markProcessing(id: string, providerTransactionId: string) {
+    const payment = this.get(id);
+    payment.providerTransactionId = providerTransactionId;
+    return payment;
+  }
+
+  async markFailed(
+    id: string,
+    providerTransactionId: string,
+    failureCode: string,
+  ) {
     const payment = this.get(id);
     payment.status = PaymentStatus.FAILED;
+    payment.providerTransactionId = providerTransactionId;
     payment.failureCode = failureCode;
     return payment;
   }
 
-  async markOrderSynced(id: string) {
+  private readonly providerEventIds = new Set<string>();
+
+  async applyProviderEvent(event: ProviderEventData) {
+    const payment = this.get(event.paymentId);
+    if (
+      payment.orderId !== event.orderId ||
+      payment.providerTransactionId !== event.providerTransactionId ||
+      payment.amount !== event.amount ||
+      payment.currency !== event.currency ||
+      payment.method !== PaymentMethod.MOCK_ONLINE
+    ) {
+      throw new InvalidProviderEventError(
+        "Provider event does not match the payment",
+      );
+    }
+    const key = `${event.provider}:${event.providerEventId}`;
+    if (this.providerEventIds.has(key) || payment.status === event.status) {
+      return { payment, duplicate: true };
+    }
+    if (payment.status !== PaymentStatus.PROCESSING) {
+      throw new InvalidProviderEventError(
+        "Provider event conflicts with the terminal payment status",
+      );
+    }
+    this.providerEventIds.add(key);
+    payment.status = event.status;
+    payment.failureCode = event.failureCode;
+    if (event.status === PaymentStatus.SUCCEEDED) {
+      payment.orderSyncStatus = OrderSyncStatus.PENDING;
+      payment.nextOrderSyncAt = new Date();
+    }
+    return { payment, duplicate: false };
+  }
+
+  async markOrderSynced(id: string, refundRequired = false) {
     const payment = this.get(id);
     payment.orderSyncStatus = OrderSyncStatus.SYNCED;
     payment.orderSyncedAt = new Date();
     payment.nextOrderSyncAt = null;
+    if (refundRequired) {
+      payment.resolutionStatus = PaymentResolutionStatus.REFUND_REQUIRED;
+      payment.resolutionReason = "ORDER_CANCELLED_AFTER_PAYMENT";
+    }
     return payment;
   }
 
@@ -139,6 +200,7 @@ class FakeOrderService implements IOrderService {
     customerUserId: CUSTOMER_ID,
     status: OrderStatus.PENDING,
     totalPrice: "125000.00",
+    currency: "VND",
     paymentMethod: null,
     paymentStatus: OrderPaymentStatus.UNPAID,
   }) {}
@@ -157,6 +219,7 @@ class FakeOrderService implements IOrderService {
     }
     this.context.paymentMethod = method;
     this.context.paymentStatus = status;
+    return { orderStatus: this.context.status };
   }
 }
 
@@ -171,16 +234,20 @@ class FakeProvider implements IPaymentProvider {
     this.calls += 1;
     if (this.wait) await this.wait;
     return this.outcomes.shift() ?? {
-      succeeded: true as const,
+      status: "SUCCEEDED" as const,
       providerTransactionId: `mock_${this.calls}`,
     };
+  }
+
+  verifyWebhook(): never {
+    throw new Error("not implemented by fake provider");
   }
 }
 
 const setup = (
   orders = new FakeOrderService(),
   provider = new FakeProvider([
-    { succeeded: true, providerTransactionId: "mock_success" },
+    { status: "SUCCEEDED", providerTransactionId: "mock_success" },
   ]),
   now: () => Date = () => new Date(),
 ) => {
@@ -207,6 +274,7 @@ test("request schema rejects client-owned amount, customerId and paymentStatus",
     amount: "1.00",
     customerId: OTHER_CUSTOMER_ID,
     paymentStatus: PaymentStatus.SUCCEEDED,
+    currency: "USD",
   }));
 });
 
@@ -238,6 +306,7 @@ test("amount always comes from Order and an idempotent replay does not charge tw
   const second = await fixture.handler.execute(command);
 
   assert.equal(first.payment.amount, "90001.50");
+  assert.equal(first.payment.currency, "VND");
   assert.equal(first.payment.status, PaymentStatus.SUCCEEDED);
   assert.equal(second.payment.id, first.payment.id);
   assert.equal(second.replayed, true);
@@ -265,7 +334,7 @@ test("two concurrent requests with one key execute the provider once", async () 
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
   const provider = new FakeProvider([
-    { succeeded: true, providerTransactionId: "mock_concurrent" },
+    { status: "SUCCEEDED", providerTransactionId: "mock_concurrent" },
   ], gate);
   const fixture = setup(new FakeOrderService(), provider);
   const command = {
@@ -290,7 +359,7 @@ test("two concurrent intents for one order cannot both reach the provider", asyn
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
   const provider = new FakeProvider([
-    { succeeded: true, providerTransactionId: "mock_single_charge" },
+    { status: "SUCCEEDED", providerTransactionId: "mock_single_charge" },
   ], gate);
   const fixture = setup(new FakeOrderService(), provider);
   const firstPromise = fixture.handler.execute({
@@ -316,8 +385,12 @@ test("two concurrent intents for one order cannot both reach the provider", asyn
 
 test("failed online payment releases the order for retry with a new key", async () => {
   const provider = new FakeProvider([
-    { succeeded: false, failureCode: "MOCK_PAYMENT_DECLINED" },
-    { succeeded: true, providerTransactionId: "mock_retry" },
+    {
+      status: "FAILED",
+      providerTransactionId: "mock_failed",
+      failureCode: "MOCK_PAYMENT_DECLINED",
+    },
+    { status: "SUCCEEDED", providerTransactionId: "mock_retry" },
   ]);
   const fixture = setup(new FakeOrderService(), provider);
   const failed = await fixture.handler.execute({
@@ -374,4 +447,118 @@ test("payment lookup only returns records owned by the customer", async () => {
     query.query(created.payment.id, OTHER_CUSTOMER_ID),
     PaymentNotFoundError,
   );
+});
+
+const webhookFixture = () => {
+  const payments = new MemoryPaymentRepository();
+  const orders = new FakeOrderService();
+  const provider = new MockPaymentProvider("PENDING", MOCK_WEBHOOK_SECRET);
+  const synchronizer = new OrderPaymentSynchronizer(payments, orders, 1);
+  return {
+    payments,
+    orders,
+    createPayment: new CreatePaymentCommandHandler(
+      payments,
+      orders,
+      provider,
+      synchronizer,
+    ),
+    processWebhook: new ProcessProviderWebhookCommandHandler(
+      payments,
+      provider,
+      synchronizer,
+    ),
+  };
+};
+
+const mockWebhookBody = (
+  payment: Payment,
+  overrides: Record<string, unknown> = {},
+) =>
+  Buffer.from(
+    JSON.stringify({
+      id: "evt_mock_success_1",
+      type: "payment.succeeded",
+      data: {
+        paymentId: payment.id,
+        orderId: payment.orderId,
+        providerTransactionId: payment.providerTransactionId,
+        amount: payment.amount,
+        currency: payment.currency,
+        ...overrides,
+      },
+    }),
+  );
+
+test("signed webhook succeeds once and duplicate delivery is idempotent", async () => {
+  const fixture = webhookFixture();
+  const created = await fixture.createPayment.execute({
+    customerId: CUSTOMER_ID,
+    idempotencyKey: "webhook-success-key",
+    input: { orderId: ORDER_ID, method: PaymentMethod.MOCK_ONLINE },
+  });
+  assert.equal(created.payment.status, PaymentStatus.PROCESSING);
+  const stored = fixture.payments.records[0]!;
+  const body = mockWebhookBody(stored);
+  const signature = signMockWebhook(body, MOCK_WEBHOOK_SECRET);
+
+  const first = await fixture.processWebhook.execute(body, signature);
+  const duplicate = await fixture.processWebhook.execute(body, signature);
+
+  assert.equal(first.payment.status, PaymentStatus.SUCCEEDED);
+  assert.equal(first.payment.orderSyncStatus, OrderSyncStatus.SYNCED);
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(fixture.orders.syncCalls, 1);
+  assert.equal(fixture.orders.context.paymentStatus, OrderPaymentStatus.PAID);
+});
+
+test("forged or mismatched webhook cannot change payment state", async () => {
+  const fixture = webhookFixture();
+  await fixture.createPayment.execute({
+    customerId: CUSTOMER_ID,
+    idempotencyKey: "webhook-validation-key",
+    input: { orderId: ORDER_ID, method: PaymentMethod.MOCK_ONLINE },
+  });
+  const stored = fixture.payments.records[0]!;
+  const validBody = mockWebhookBody(stored);
+  await assert.rejects(
+    fixture.processWebhook.execute(validBody, "sha256=forged"),
+    InvalidProviderSignatureError,
+  );
+
+  const wrongAmountBody = mockWebhookBody(stored, { amount: "1.00" });
+  await assert.rejects(
+    fixture.processWebhook.execute(
+      wrongAmountBody,
+      signMockWebhook(wrongAmountBody, MOCK_WEBHOOK_SECRET),
+    ),
+    InvalidProviderEventError,
+  );
+  assert.equal(stored.status, PaymentStatus.PROCESSING);
+  assert.equal(fixture.orders.syncCalls, 0);
+});
+
+test("successful callback after cancellation stays paid and requires refund", async () => {
+  const fixture = webhookFixture();
+  await fixture.createPayment.execute({
+    customerId: CUSTOMER_ID,
+    idempotencyKey: "late-callback-key",
+    input: { orderId: ORDER_ID, method: PaymentMethod.MOCK_ONLINE },
+  });
+  fixture.orders.context.status = OrderStatus.CANCELLED;
+  const stored = fixture.payments.records[0]!;
+  const body = mockWebhookBody(stored, {});
+
+  const result = await fixture.processWebhook.execute(
+    body,
+    signMockWebhook(body, MOCK_WEBHOOK_SECRET),
+  );
+
+  assert.equal(result.payment.status, PaymentStatus.SUCCEEDED);
+  assert.equal(
+    result.payment.resolutionStatus,
+    PaymentResolutionStatus.REFUND_REQUIRED,
+  );
+  assert.equal(fixture.orders.context.status, OrderStatus.CANCELLED);
+  assert.equal(fixture.orders.context.paymentStatus, OrderPaymentStatus.PAID);
 });

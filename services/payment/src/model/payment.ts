@@ -1,6 +1,7 @@
 import type {
   OrderSyncStatus,
   PaymentMethod,
+  PaymentResolutionStatus,
   PaymentStatus,
 } from "../share/enums/index.js";
 
@@ -9,6 +10,7 @@ export interface Payment {
   orderId: string;
   customerId: string;
   amount: string;
+  currency: string;
   method: PaymentMethod;
   status: PaymentStatus;
   providerTransactionId: string | null;
@@ -19,6 +21,8 @@ export interface Payment {
   orderSyncAttempts: number;
   nextOrderSyncAt: Date | null;
   orderSyncedAt: Date | null;
+  resolutionStatus: PaymentResolutionStatus;
+  resolutionReason: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

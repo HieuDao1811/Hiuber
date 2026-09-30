@@ -13,6 +13,7 @@ export class GetPaymentContextQueryHandler {
       customerUserId: order.customerUserId,
       status: order.status,
       totalPrice: order.totalPrice,
+      currency: order.currency,
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
     };

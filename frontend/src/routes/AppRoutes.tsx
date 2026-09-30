@@ -6,6 +6,9 @@ import Register from "../pages/Register/Register";
 import Profile from "../pages/Profile/Profile";
 import PublicRoute from "../components/routes/publicRoute";
 import ProtectedRoute from "../components/routes/protectedRoute";
+import Notifications from "../pages/Notifications/Notifications";
+import OrderDetails from "../pages/Orders/OrderDetails";
+import Orders from "../pages/Orders/Orders";
 
 const AppRoutes = () => {
   return (
@@ -23,6 +26,13 @@ const AppRoutes = () => {
         {/* Protected routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/profile" element={<Profile />} />
+          <Route path="/orders" element={<Orders />} />
+          <Route path="/orders/:orderId" element={<OrderDetails />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route
+            path="/restaurants/:restaurantId/orders/:orderId"
+            element={<OrderDetails />}
+          />
         </Route>
       </Routes>
       <Toaster

@@ -17,6 +17,10 @@ export interface UpdateCustomerAddressData {
 
 export interface ICustomerAddressRepository {
   findManyByCustomerId(customerId: string): Promise<CustomerAddress[]>;
+  findOwned(
+    addressId: string,
+    customerId: string,
+  ): Promise<CustomerAddress | null>;
   create(data: CreateCustomerAddressData): Promise<CustomerAddress>;
   updateOwned(
     addressId: string,

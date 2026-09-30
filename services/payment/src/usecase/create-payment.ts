@@ -71,6 +71,7 @@ export class CreatePaymentCommandHandler {
       orderId: order.id,
       customerId: command.customerId,
       amount,
+      currency: order.currency,
       method: command.input.method,
       status:
         command.input.method === PaymentMethod.COD
@@ -90,13 +91,25 @@ export class CreatePaymentCommandHandler {
         paymentId: payment.id,
         orderId: payment.orderId,
         amount: payment.amount,
+        currency: payment.currency,
       });
-      payment = outcome.succeeded
-        ? await this.payments.markSucceeded(
-            payment.id,
-            outcome.providerTransactionId,
-          )
-        : await this.payments.markFailed(payment.id, outcome.failureCode);
+      if (outcome.status === "PENDING") {
+        payment = await this.payments.markProcessing(
+          payment.id,
+          outcome.providerTransactionId,
+        );
+      } else if (outcome.status === "SUCCEEDED") {
+        payment = await this.payments.markSucceeded(
+          payment.id,
+          outcome.providerTransactionId,
+        );
+      } else {
+        payment = await this.payments.markFailed(
+          payment.id,
+          outcome.providerTransactionId,
+          outcome.failureCode,
+        );
+      }
     }
 
     payment = await this.synchronizer.attempt(payment);

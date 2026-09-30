@@ -1,12 +1,13 @@
 import type { IOrderRepository } from "../interface/order-repository.js";
 import type { IRestaurantService } from "../interface/restaurant-service.js";
 import type { Order } from "../model/order.js";
+import { newOrderEvent } from "../model/order-event.js";
 import {
   ConcurrentOrderUpdateError,
   InvalidOrderStatusTransitionError,
   OrderNotFoundError,
 } from "../model/errors.js";
-import { OrderStatus } from "../share/enums/index.js";
+import { OrderEventType, OrderStatus } from "../share/enums/index.js";
 import { assertRestaurantOwner } from "./restaurant-access.js";
 
 const ALLOWED_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
@@ -51,6 +52,22 @@ export class UpdateOrderStatusCommandHandler {
       order.restaurantId,
       order.status,
       command.status,
+      newOrderEvent(
+        OrderEventType.ORDER_STATUS_UPDATED,
+        command.ownerUserId,
+        [
+          {
+            recipientUserId: order.customerUserId,
+            title: "Order status updated",
+            message: `Your order is now ${command.status}.`,
+          },
+          {
+            recipientUserId: command.ownerUserId,
+            title: "Order status updated",
+            message: `The order is now ${command.status}.`,
+          },
+        ],
+      ),
     );
     if (!updated) {
       throw new ConcurrentOrderUpdateError();

@@ -3,13 +3,17 @@ import type { IOrderRepository } from "../interface/order-repository.js";
 import type { IRestaurantService } from "../interface/restaurant-service.js";
 import type { CreateOrderInput } from "../model/order.dto.js";
 import type { Order } from "../model/order.js";
+import { newOrderEvent } from "../model/order-event.js";
 import {
   MenuItemNotFoundError,
   MenuItemRestaurantMismatchError,
   MenuItemUnavailableError,
   RestaurantClosedError,
 } from "../model/errors.js";
-import { RestaurantStatus } from "../share/enums/index.js";
+import {
+  OrderEventType,
+  RestaurantStatus,
+} from "../share/enums/index.js";
 import {
   fromMinorUnits,
   normalizeMoney,
@@ -30,8 +34,12 @@ export class CreateOrderCommandHandler {
     private readonly customers: ICustomerService,
     private readonly restaurants: IRestaurantService,
     deliveryFee: string,
+    private readonly currency = "VND",
   ) {
     this.deliveryFee = normalizeMoney(deliveryFee);
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      throw new Error("currency must be a three-letter uppercase code");
+    }
   }
 
   async execute(command: CreateOrderCommand): Promise<Order> {
@@ -76,17 +84,36 @@ export class CreateOrderCommandHandler {
     });
 
     const deliveryFeeMinor = toMinorUnits(this.deliveryFee);
-    return this.orders.createAtomic({
-      customerUserId: command.customerUserId,
-      restaurantId: input.restaurantId,
-      addressLabel: address.label,
-      deliveryAddress: address.address,
-      receiverName: address.receiverName,
-      receiverPhone: address.receiverPhone,
-      subtotal: fromMinorUnits(subtotalMinor),
-      deliveryFee: this.deliveryFee,
-      totalPrice: fromMinorUnits(subtotalMinor + deliveryFeeMinor),
-      items,
-    });
+    return this.orders.createAtomic(
+      {
+        customerUserId: command.customerUserId,
+        restaurantId: input.restaurantId,
+        currency: this.currency,
+        addressLabel: address.label,
+        deliveryAddress: address.address,
+        receiverName: address.receiverName,
+        receiverPhone: address.receiverPhone,
+        subtotal: fromMinorUnits(subtotalMinor),
+        deliveryFee: this.deliveryFee,
+        totalPrice: fromMinorUnits(subtotalMinor + deliveryFeeMinor),
+        items,
+      },
+      newOrderEvent(
+        OrderEventType.ORDER_CREATED,
+        context.restaurant.ownerUserId,
+        [
+          {
+            recipientUserId: command.customerUserId,
+            title: "Order placed",
+            message: "Your order has been created and is awaiting confirmation.",
+          },
+          {
+            recipientUserId: context.restaurant.ownerUserId,
+            title: "New order",
+            message: "A new order is waiting for your confirmation.",
+          },
+        ],
+      ),
+    );
   }
 }

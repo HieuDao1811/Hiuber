@@ -34,6 +34,7 @@ All customer routes require `Authorization: Bearer <accessToken>` and a verified
 - `GET /v1/customers/me`
 - `PATCH /v1/customers/me`
 - `GET /v1/customers/me/addresses`
+- `GET /v1/customers/me/addresses/:addressId`
 - `POST /v1/customers/me/addresses`
 - `PATCH /v1/customers/me/addresses/:addressId`
 - `DELETE /v1/customers/me/addresses/:addressId`

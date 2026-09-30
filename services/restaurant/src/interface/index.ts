@@ -42,6 +42,7 @@ export type UpdateMenuItemData = Partial<
 export interface IMenuItemRepository {
   create(data: CreateMenuItemData): Promise<MenuItem>;
   findById(id: string): Promise<MenuItem | null>;
+  findManyByIds(ids: string[]): Promise<MenuItem[]>;
   findAvailablePage(
     restaurantId: string,
     query: CursorQuery,

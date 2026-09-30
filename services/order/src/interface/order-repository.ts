@@ -1,4 +1,5 @@
 import type { Order } from "../model/order.js";
+import type { OrderEventSpec } from "../model/order-event.js";
 import type {
   OrderStatus,
   PaymentMethod,
@@ -18,6 +19,7 @@ export interface CursorPage<Item> {
 export interface CreateOrderData {
   customerUserId: string;
   restaurantId: string;
+  currency: string;
   addressLabel: string | null;
   deliveryAddress: string;
   receiverName: string;
@@ -35,7 +37,7 @@ export interface CreateOrderData {
 }
 
 export interface IOrderRepository {
-  createAtomic(data: CreateOrderData): Promise<Order>;
+  createAtomic(data: CreateOrderData, event: OrderEventSpec): Promise<Order>;
   findCustomerPage(
     customerUserId: string,
     query: CursorQuery,
@@ -58,10 +60,12 @@ export interface IOrderRepository {
     restaurantId: string,
     expectedStatus: OrderStatus,
     status: OrderStatus,
+    event: OrderEventSpec,
   ): Promise<Order | null>;
   syncPaymentStatus(
     orderId: string,
     method: PaymentMethod,
     status: PaymentStatus,
+    event: OrderEventSpec,
   ): Promise<Order | null>;
 }

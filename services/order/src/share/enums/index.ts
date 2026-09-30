@@ -27,3 +27,9 @@ export enum PaymentStatus {
   UNPAID = "UNPAID",
   PAID = "PAID",
 }
+
+export enum OrderEventType {
+  ORDER_CREATED = "ORDER_CREATED",
+  ORDER_STATUS_UPDATED = "ORDER_STATUS_UPDATED",
+  PAYMENT_STATUS_UPDATED = "PAYMENT_STATUS_UPDATED",
+}

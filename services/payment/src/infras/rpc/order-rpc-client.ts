@@ -21,10 +21,14 @@ const ContextResponseSchema = z.object({
       customerUserId: z.uuid(),
       status: z.enum(OrderStatus),
       totalPrice: MoneySchema,
+      currency: z.string().regex(/^[A-Z]{3}$/),
       paymentMethod: z.enum(PaymentMethod).nullable(),
       paymentStatus: z.enum(OrderPaymentStatus),
     })
     .strict(),
+});
+const SyncResponseSchema = z.object({
+  data: z.object({ status: z.enum(OrderStatus) }),
 });
 
 export class OrderRpcClient implements IOrderService {
@@ -76,7 +80,7 @@ export class OrderRpcClient implements IOrderService {
     orderId: string,
     method: PaymentMethod,
     status: OrderPaymentStatus,
-  ): Promise<void> {
+  ): Promise<{ orderStatus: OrderStatus }> {
     const url = new URL(
       `/internal/orders/${encodeURIComponent(orderId)}/payment`,
       this.baseUrl,
@@ -93,5 +97,11 @@ export class OrderRpcClient implements IOrderService {
       throw new DependencyUnavailableError("ORDER");
     }
     if (!response.ok) throw new DependencyUnavailableError("ORDER");
+    try {
+      const result = SyncResponseSchema.parse(await response.json());
+      return { orderStatus: result.data.status };
+    } catch {
+      throw new DependencyUnavailableError("ORDER");
+    }
   }
 }

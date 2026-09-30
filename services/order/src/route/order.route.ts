@@ -19,6 +19,7 @@ export interface OrderRouterDependencies {
   customerService: ICustomerService;
   restaurantService: IRestaurantService;
   deliveryFee: string;
+  orderCurrency: string;
 }
 
 const createHttpService = (dependencies: OrderRouterDependencies) =>
@@ -28,6 +29,7 @@ const createHttpService = (dependencies: OrderRouterDependencies) =>
       dependencies.customerService,
       dependencies.restaurantService,
       dependencies.deliveryFee,
+      dependencies.orderCurrency,
     ),
     listCustomerOrders: new ListCustomerOrdersQueryHandler(dependencies.orders),
     getCustomerOrder: new GetCustomerOrderQueryHandler(dependencies.orders),

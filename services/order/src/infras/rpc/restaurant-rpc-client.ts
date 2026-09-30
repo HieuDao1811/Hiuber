@@ -35,6 +35,7 @@ export class RestaurantRpcClient implements IRestaurantService {
 
   constructor(
     restaurantServiceUrl: string,
+    private readonly internalServiceKey: string,
     private readonly requestTimeoutMs = 5_000,
     private readonly fetcher: typeof fetch = fetch,
   ) {
@@ -53,7 +54,10 @@ export class RestaurantRpcClient implements IRestaurantService {
     try {
       response = await this.fetcher(this.orderContextUrl, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-internal-service-key": this.internalServiceKey,
+        },
         body: JSON.stringify({ restaurantId, menuItemIds }),
         signal: AbortSignal.timeout(this.requestTimeoutMs),
       });

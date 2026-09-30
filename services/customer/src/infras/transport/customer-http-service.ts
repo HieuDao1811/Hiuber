@@ -16,6 +16,7 @@ import type { CreateAddressCommandHandler } from "../../usecase/create-address.j
 import type { CreateMyProfileCommandHandler } from "../../usecase/create-my-profile.js";
 import type { DeleteAddressCommandHandler } from "../../usecase/delete-address.js";
 import type { GetMyProfileQueryHandler } from "../../usecase/get-my-profile.js";
+import type { GetAddressQueryHandler } from "../../usecase/get-address.js";
 import type { ListAddressesQueryHandler } from "../../usecase/list-addresses.js";
 import type { SetDefaultAddressCommandHandler } from "../../usecase/set-default-address.js";
 import type { UpdateAddressCommandHandler } from "../../usecase/update-address.js";
@@ -26,6 +27,7 @@ export interface CustomerUseCases {
   getMyProfile: GetMyProfileQueryHandler;
   updateMyProfile: UpdateMyProfileCommandHandler;
   listAddresses: ListAddressesQueryHandler;
+  getAddress: GetAddressQueryHandler;
   createAddress: CreateAddressCommandHandler;
   updateAddress: UpdateAddressCommandHandler;
   deleteAddress: DeleteAddressCommandHandler;
@@ -75,6 +77,15 @@ export class CustomerHttpService {
       this.getUserId(response),
     );
     return response.status(200).json(dataResponse(addresses));
+  }
+
+  async getAddress(request: Request, response: Response) {
+    const { addressId } = AddressIdParamsSchema.parse(request.params);
+    const address = await this.useCases.getAddress.query(
+      this.getUserId(response),
+      addressId,
+    );
+    return response.status(200).json(dataResponse(address));
   }
 
   async createAddress(request: Request, response: Response) {

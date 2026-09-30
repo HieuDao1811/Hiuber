@@ -25,27 +25,53 @@ enum OrderSyncStatus {
   SYNCED
 }
 
+enum PaymentResolutionStatus {
+  NONE
+  REFUND_REQUIRED
+}
+
 model Payment {
-  id                    String          @id @default(uuid()) @db.Uuid
-  orderId               String          @db.Uuid
-  customerId            String          @db.Uuid
-  amount                Decimal         @db.Decimal(18, 2)
+  id                    String                  @id @default(uuid()) @db.Uuid
+  orderId               String                  @db.Uuid
+  customerId            String                  @db.Uuid
+  amount                Decimal                 @db.Decimal(18, 2)
+  currency              String                  @db.Char(3)
   method                PaymentMethod
   status                PaymentStatus
-  providerTransactionId String?         @unique
+  providerTransactionId String?                 @unique
   failureCode           String?
-  idempotencyKey        String          @db.VarChar(255)
-  requestHash           String          @db.Char(64)
-  orderSyncStatus       OrderSyncStatus @default(NOT_REQUIRED)
-  orderSyncAttempts     Int             @default(0)
+  idempotencyKey        String                  @db.VarChar(255)
+  requestHash           String                  @db.Char(64)
+  orderSyncStatus       OrderSyncStatus         @default(NOT_REQUIRED)
+  orderSyncAttempts     Int                     @default(0)
   nextOrderSyncAt       DateTime?
   orderSyncedAt         DateTime?
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
+  resolutionStatus      PaymentResolutionStatus @default(NONE)
+  resolutionReason      String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  webhookEvents         ProviderWebhookEvent[]
 
   @@unique([customerId, idempotencyKey])
   @@index([orderId])
   @@index([customerId, createdAt])
   @@index([orderSyncStatus, nextOrderSyncAt])
   @@map("payments")
+}
+
+model ProviderWebhookEvent {
+  id                    String        @id @default(uuid()) @db.Uuid
+  provider              String        @db.VarChar(32)
+  providerEventId       String        @db.VarChar(255)
+  paymentId             String        @db.Uuid
+  providerTransactionId String        @db.VarChar(255)
+  outcome               PaymentStatus
+  receivedAt            DateTime      @default(now())
+  processedAt           DateTime      @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, providerEventId])
+  @@index([paymentId, receivedAt])
+  @@map("provider_webhook_events")
 }

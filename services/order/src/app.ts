@@ -4,10 +4,12 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import type { IAuthService } from "./interface/auth-service.js";
 import type { ICustomerService } from "./interface/customer-service.js";
+import type { INotificationRepository } from "./interface/notification-repository.js";
 import type { IOrderRepository } from "./interface/order-repository.js";
 import type { IRestaurantService } from "./interface/restaurant-service.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import { createInternalOrderRouter } from "./route/internal-order.route.js";
+import { createNotificationRouter } from "./route/notification.route.js";
 import {
   createCustomerOrderRouter,
   createRestaurantOrderRouter,
@@ -17,10 +19,12 @@ import { dataResponse, errorResponse } from "./shared/http-response.js";
 
 export interface OrderAppDependencies {
   orders: IOrderRepository;
+  notifications: INotificationRepository;
   authService: IAuthService;
   customerService: ICustomerService;
   restaurantService: IRestaurantService;
   deliveryFee: string;
+  orderCurrency: string;
   readiness: () => Promise<void>;
   frontendOrigin?: string;
   internalServiceKey: string;
@@ -40,6 +44,7 @@ export const createOrderApp = (dependencies: OrderAppDependencies) => {
     "/internal/orders",
     createInternalOrderRouter(
       dependencies.orders,
+      dependencies.restaurantService,
       dependencies.internalServiceKey,
     ),
   );
@@ -62,6 +67,10 @@ export const createOrderApp = (dependencies: OrderAppDependencies) => {
   });
 
   app.use("/v1/orders", createCustomerOrderRouter(dependencies));
+  app.use(
+    "/v1/notifications",
+    createNotificationRouter(dependencies),
+  );
   app.use(
     "/v1/restaurants/:restaurantId/orders",
     createRestaurantOrderRouter(dependencies),

@@ -42,6 +42,7 @@ export const CursorPaginationSchema = z
 
 export const OrderIdSchema = z.uuid();
 export const RestaurantIdSchema = z.uuid();
+export const NotificationIdSchema = z.uuid();
 
 export const UpdateOrderStatusSchema = z
   .object({

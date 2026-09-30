@@ -8,6 +8,7 @@ import { CreateAddressCommandHandler } from "../usecase/create-address.js";
 import { CreateMyProfileCommandHandler } from "../usecase/create-my-profile.js";
 import { DeleteAddressCommandHandler } from "../usecase/delete-address.js";
 import { GetMyProfileQueryHandler } from "../usecase/get-my-profile.js";
+import { GetAddressQueryHandler } from "../usecase/get-address.js";
 import { ListAddressesQueryHandler } from "../usecase/list-addresses.js";
 import { SetDefaultAddressCommandHandler } from "../usecase/set-default-address.js";
 import { UpdateAddressCommandHandler } from "../usecase/update-address.js";
@@ -27,6 +28,10 @@ export const createCustomerRouter = (
     getMyProfile: new GetMyProfileQueryHandler(dependencies.profiles),
     updateMyProfile: new UpdateMyProfileCommandHandler(dependencies.profiles),
     listAddresses: new ListAddressesQueryHandler(
+      dependencies.profiles,
+      dependencies.addresses,
+    ),
+    getAddress: new GetAddressQueryHandler(
       dependencies.profiles,
       dependencies.addresses,
     ),
@@ -57,6 +62,10 @@ export const createCustomerRouter = (
   router.get(
     "/me/addresses",
     httpService.listAddresses.bind(httpService),
+  );
+  router.get(
+    "/me/addresses/:addressId",
+    httpService.getAddress.bind(httpService),
   );
   router.post(
     "/me/addresses",

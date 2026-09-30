@@ -13,6 +13,7 @@ import {
 import { Header } from "../../components/layout/Header";
 import { MobileNavbar } from "../../components/layout/MobileNavbar";
 import { useAuth } from "../../hooks/useAuth";
+import { clearSession } from "../../services/session";
 
 const menuItems = [
   { label: "Đơn hàng của tôi", description: "Xem lại các đơn đã đặt", icon: FiClock },
@@ -27,7 +28,7 @@ const Profile = () => {
   const firstLetter = user?.name?.charAt(0).toUpperCase() || "U";
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    clearSession();
     setIsAuth(false);
     setUser(null);
     toast.success("Bạn đã đăng xuất");

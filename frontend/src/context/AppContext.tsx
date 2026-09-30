@@ -24,7 +24,7 @@ export const AppProvider = ({ children }: AppProviderProps) => {
       }
 
       try {
-        const { data } = await axios.get(`${authService}/v1/auth/profile`, {
+        const { data } = await axios.get(`${authService}/v1/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -34,8 +34,7 @@ export const AppProvider = ({ children }: AppProviderProps) => {
           setUser(data.data);
           setIsAuth(true);
         }
-      } catch (error) {
-        console.error(error);
+      } catch {
         localStorage.removeItem("token");
         setIsAuth(false);
       } finally {

@@ -23,6 +23,7 @@ import { MenuItem, Restaurant } from "../model/restaurant.js";
 import { RestaurantStatus, UserRole } from "../share/enums/index.js";
 import { CreateMenuItemCommandHandler } from "./create-menu-item.js";
 import { CreateRestaurantCommandHandler } from "./create-restaurant.js";
+import { GetOrderContextQueryHandler } from "./get-order-context.js";
 import { ListRestaurantsQueryHandler } from "./list-restaurants.js";
 import { UpdateMenuItemCommandHandler } from "./update-menu-item.js";
 import { UpdateRestaurantCommandHandler } from "./update-restaurant.js";
@@ -118,6 +119,10 @@ class MemoryMenuItemRepository implements IMenuItemRepository {
 
   async findById(id: string): Promise<MenuItem | null> {
     return this.items.find((item) => item.id === id) ?? null;
+  }
+
+  async findManyByIds(ids: string[]): Promise<MenuItem[]> {
+    return this.items.filter((item) => ids.includes(item.id));
   }
 
   async findAvailablePage(
@@ -298,4 +303,30 @@ test("menu update accepts a logo without other fields", async () => {
   });
 
   assert.equal(updated.imageUrl, logoUrl);
+});
+
+test("internal order context returns exact items including unavailable ones", async () => {
+  const restaurant = createRestaurant();
+  const available = createMenuItem({ restaurantId: restaurant.id });
+  const unavailable = createMenuItem({
+    restaurantId: restaurant.id,
+    isAvailable: false,
+  });
+  const unrelated = createMenuItem();
+  const handler = new GetOrderContextQueryHandler(
+    new MemoryRestaurantRepository([restaurant]),
+    new MemoryMenuItemRepository([available, unavailable, unrelated]),
+  );
+
+  const context = await handler.query(restaurant.id, [
+    available.id,
+    unavailable.id,
+  ]);
+
+  assert.equal(context.restaurant.ownerUserId, restaurant.ownerUserId);
+  assert.deepEqual(
+    context.menuItems.map(({ id }) => id),
+    [available.id, unavailable.id],
+  );
+  assert.equal(context.menuItems[1]?.isAvailable, false);
 });

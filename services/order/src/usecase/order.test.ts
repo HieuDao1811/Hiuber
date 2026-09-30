@@ -19,6 +19,7 @@ import {
   type CreateOrderInput,
 } from "../model/order.dto.js";
 import type { Order } from "../model/order.js";
+import type { OrderEventSpec } from "../model/order-event.js";
 import {
   ForbiddenError,
   InvalidOrderStatusTransitionError,
@@ -30,6 +31,7 @@ import {
 } from "../model/errors.js";
 import {
   OrderStatus,
+  OrderEventType,
   PaymentMethod,
   PaymentStatus,
   RestaurantStatus,
@@ -47,12 +49,17 @@ const RESTAURANT_ID = "44444444-4444-4444-8444-444444444444";
 const ADDRESS_ID = "55555555-5555-4555-8555-555555555555";
 const ITEM_ONE_ID = "66666666-6666-4666-8666-666666666666";
 const ITEM_TWO_ID = "77777777-7777-4777-8777-777777777777";
+const ORDER_ID = "88888888-8888-4888-8888-888888888888";
 
 class MemoryOrderRepository implements IOrderRepository {
   readonly orders: Order[] = [];
+  readonly events: OrderEventSpec[] = [];
   restaurantPageCalls = 0;
 
-  async createAtomic(data: CreateOrderData): Promise<Order> {
+  async createAtomic(
+    data: CreateOrderData,
+    event?: OrderEventSpec,
+  ): Promise<Order> {
     const now = new Date();
     const orderId = randomUUID();
     const order: Order = {
@@ -62,6 +69,8 @@ class MemoryOrderRepository implements IOrderRepository {
       status: OrderStatus.PENDING,
       paymentMethod: null,
       paymentStatus: PaymentStatus.UNPAID,
+      currency: data.currency,
+      version: 1,
       addressLabel: data.addressLabel,
       deliveryAddress: data.deliveryAddress,
       receiverName: data.receiverName,
@@ -78,6 +87,7 @@ class MemoryOrderRepository implements IOrderRepository {
       })),
     };
     this.orders.push(order);
+    if (event) this.events.push(event);
     return order;
   }
 
@@ -121,11 +131,14 @@ class MemoryOrderRepository implements IOrderRepository {
     restaurantId: string,
     expectedStatus: OrderStatus,
     status: OrderStatus,
+    event: OrderEventSpec,
   ) {
     const order = await this.findByIdForRestaurant(orderId, restaurantId);
     if (!order || order.status !== expectedStatus) return null;
     order.status = status;
+    order.version += 1;
     order.updatedAt = new Date();
+    this.events.push(event);
     return order;
   }
 
@@ -134,6 +147,7 @@ class MemoryOrderRepository implements IOrderRepository {
     orderId: string,
     method: PaymentMethod,
     status: PaymentStatus,
+    event: OrderEventSpec,
   ) {
     const order = await this.findById(orderId);
     if (!order || (order.paymentMethod && order.paymentMethod !== method)) {
@@ -141,7 +155,9 @@ class MemoryOrderRepository implements IOrderRepository {
     }
     order.paymentMethod = method;
     order.paymentStatus = status;
+    order.version += 1;
     order.updatedAt = new Date();
+    this.events.push(event);
     return order;
   }
 }
@@ -261,6 +277,29 @@ test("Customer RPC resolves one authenticated address by id", async () => {
   assert.equal(address.address, "123 Main Street");
 });
 
+test("Restaurant RPC authenticates internal ownership and menu lookups", async () => {
+  let internalKey: string | null = null;
+  const fetcher: typeof fetch = async (_input, init) => {
+    internalKey = new Headers(init?.headers).get("x-internal-service-key");
+    return new Response(JSON.stringify(orderContext()), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  const { RestaurantRpcClient } = await import(
+    "../infras/rpc/restaurant-rpc-client.js"
+  );
+  await new RestaurantRpcClient(
+    "http://restaurant.test",
+    "shared-internal-key",
+    5_000,
+    fetcher,
+  ).getOrderContext(RESTAURANT_ID, [ITEM_ONE_ID]);
+
+  assert.equal(internalKey, "shared-internal-key");
+});
+
 test("create order calculates exact money and keeps address/menu snapshots", async () => {
   const orders = new MemoryOrderRepository();
   const restaurants = new FakeRestaurantService();
@@ -280,6 +319,7 @@ test("create order calculates exact money and keeps address/menu snapshots", asy
   assert.equal(order.subtotal, "30.35");
   assert.equal(order.deliveryFee, "2.50");
   assert.equal(order.totalPrice, "32.85");
+  assert.equal(order.currency, "VND");
   assert.equal(order.items[0]?.lineTotal, "30.15");
   assert.equal(order.items[1]?.lineTotal, "0.20");
   assert.equal(order.status, OrderStatus.PENDING);
@@ -334,6 +374,7 @@ test("customer order lookup cannot read another customer's order", async () => {
   const created = await orders.createAtomic({
     customerUserId: CUSTOMER_ID,
     restaurantId: RESTAURANT_ID,
+    currency: "VND",
     addressLabel: null,
     deliveryAddress: "123 Main Street",
     receiverName: "Customer One",
@@ -369,6 +410,7 @@ test("restaurant status updates follow the state machine", async () => {
   const order = await orders.createAtomic({
     customerUserId: CUSTOMER_ID,
     restaurantId: RESTAURANT_ID,
+    currency: "VND",
     addressLabel: null,
     deliveryAddress: "123 Main Street",
     receiverName: "Customer One",
@@ -402,11 +444,12 @@ test("restaurant status updates follow the state machine", async () => {
   );
 });
 
-test("internal payment synchronization is idempotent and never downgrades paid", async () => {
+test("payment sync is idempotent, never downgrades paid or reopens cancellation", async () => {
   const orders = new MemoryOrderRepository();
   const order = await orders.createAtomic({
     customerUserId: CUSTOMER_ID,
     restaurantId: RESTAURANT_ID,
+    currency: "VND",
     addressLabel: null,
     deliveryAddress: "123 Main Street",
     receiverName: "Customer One",
@@ -416,7 +459,11 @@ test("internal payment synchronization is idempotent and never downgrades paid",
     totalPrice: "12.00",
     items: [],
   });
-  const handler = new SyncPaymentStatusCommandHandler(orders);
+  order.status = OrderStatus.CANCELLED;
+  const handler = new SyncPaymentStatusCommandHandler(
+    orders,
+    new FakeRestaurantService(),
+  );
   const paid = await handler.execute({
     orderId: order.id,
     method: PaymentMethod.MOCK_ONLINE,
@@ -428,6 +475,7 @@ test("internal payment synchronization is idempotent and never downgrades paid",
     status: PaymentStatus.PAID,
   });
   assert.equal(paid.paymentStatus, PaymentStatus.PAID);
+  assert.equal(paid.status, OrderStatus.CANCELLED);
   assert.equal(replayed.paymentStatus, PaymentStatus.PAID);
 
   await assert.rejects(
@@ -448,32 +496,70 @@ test("internal payment synchronization is idempotent and never downgrades paid",
   );
 });
 
-test("Prisma repository transaction leaves no order when an item write fails", async () => {
+test("Prisma transaction rolls back order and notifications when outbox write fails", async () => {
   let committedOrders = 0;
-  type FakeTransaction = {
-    order: {
-      create: (arguments_: {
-        data: { items: { create: unknown[] } };
-      }) => Promise<never>;
-    };
-  };
+  let committedNotifications = 0;
+  let committedEvents = 0;
   const database = {
     $transaction: async (
-      callback: (transaction: FakeTransaction) => Promise<unknown>,
+      callback: (transaction: unknown) => Promise<unknown>,
     ) => {
       let stagedOrders = 0;
-      const transaction: FakeTransaction = {
+      let stagedNotifications = 0;
+      let stagedEvents = 0;
+      const now = new Date();
+      const transaction = {
         order: {
-          create: async (arguments_) => {
+          create: async (arguments_: {
+            data: { items: { create: Array<Record<string, unknown>> } };
+          }) => {
             stagedOrders += 1;
             assert.equal(arguments_.data.items.create.length, 2);
-            throw new Error("second item insert failed");
+            return {
+              id: ORDER_ID,
+              customerUserId: CUSTOMER_ID,
+              restaurantId: RESTAURANT_ID,
+              status: OrderStatus.PENDING,
+              paymentMethod: null,
+              paymentStatus: PaymentStatus.UNPAID,
+              currency: "VND",
+              version: 1,
+              addressLabel: null,
+              deliveryAddress: "123 Main Street",
+              receiverName: "Customer One",
+              receiverPhone: "0901234567",
+              subtotal: "20.00",
+              deliveryFee: "2.00",
+              totalPrice: "22.00",
+              createdAt: now,
+              updatedAt: now,
+              items: arguments_.data.items.create.map((item, index) => ({
+                ...item,
+                id: randomUUID(),
+                orderId: ORDER_ID,
+                menuItemId: index === 0 ? ITEM_ONE_ID : ITEM_TWO_ID,
+              })),
+            };
+          },
+        },
+        notification: {
+          createMany: async (arguments_: { data: unknown[] }) => {
+            stagedNotifications += arguments_.data.length;
+            return { count: arguments_.data.length };
+          },
+        },
+        orderEventOutbox: {
+          create: async () => {
+            stagedEvents += 1;
+            throw new Error("outbox insert failed");
           },
         },
       };
 
       const result = await callback(transaction);
       committedOrders += stagedOrders;
+      committedNotifications += stagedNotifications;
+      committedEvents += stagedEvents;
       return result;
     },
   };
@@ -482,34 +568,51 @@ test("Prisma repository transaction leaves no order when an item write fails", a
   );
 
   await assert.rejects(
-    repository.createAtomic({
-      customerUserId: CUSTOMER_ID,
-      restaurantId: RESTAURANT_ID,
-      addressLabel: null,
-      deliveryAddress: "123 Main Street",
-      receiverName: "Customer One",
-      receiverPhone: "0901234567",
-      subtotal: "20.00",
-      deliveryFee: "2.00",
-      totalPrice: "22.00",
-      items: [
-        {
-          menuItemId: ITEM_ONE_ID,
-          name: "Rice",
-          unitPrice: "10.00",
-          quantity: 1,
-          lineTotal: "10.00",
-        },
-        {
-          menuItemId: ITEM_TWO_ID,
-          name: "Soup",
-          unitPrice: "10.00",
-          quantity: 1,
-          lineTotal: "10.00",
-        },
-      ],
-    }),
-    /second item insert failed/,
+    repository.createAtomic(
+      {
+        customerUserId: CUSTOMER_ID,
+        restaurantId: RESTAURANT_ID,
+        currency: "VND",
+        addressLabel: null,
+        deliveryAddress: "123 Main Street",
+        receiverName: "Customer One",
+        receiverPhone: "0901234567",
+        subtotal: "20.00",
+        deliveryFee: "2.00",
+        totalPrice: "22.00",
+        items: [
+          {
+            menuItemId: ITEM_ONE_ID,
+            name: "Rice",
+            unitPrice: "10.00",
+            quantity: 1,
+            lineTotal: "10.00",
+          },
+          {
+            menuItemId: ITEM_TWO_ID,
+            name: "Soup",
+            unitPrice: "10.00",
+            quantity: 1,
+            lineTotal: "10.00",
+          },
+        ],
+      },
+      {
+        eventId: randomUUID(),
+        type: OrderEventType.ORDER_CREATED,
+        restaurantOwnerUserId: OWNER_ID,
+        notifications: [
+          {
+            recipientUserId: CUSTOMER_ID,
+            title: "Order placed",
+            message: "Your order was created",
+          },
+        ],
+      },
+    ),
+    /outbox insert failed/,
   );
   assert.equal(committedOrders, 0);
+  assert.equal(committedNotifications, 0);
+  assert.equal(committedEvents, 0);
 });

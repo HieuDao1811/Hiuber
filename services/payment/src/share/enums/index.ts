@@ -35,3 +35,8 @@ export enum OrderSyncStatus {
   PENDING = "PENDING",
   SYNCED = "SYNCED",
 }
+
+export enum PaymentResolutionStatus {
+  NONE = "NONE",
+  REFUND_REQUIRED = "REFUND_REQUIRED",
+}

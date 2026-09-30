@@ -1,16 +1,22 @@
 import type { IOrderRepository } from "../interface/order-repository.js";
+import type { IRestaurantService } from "../interface/restaurant-service.js";
+import { newOrderEvent } from "../model/order-event.js";
 import {
   OrderNotFoundError,
   PaymentMethodConflictError,
   PaymentStatusConflictError,
 } from "../model/errors.js";
 import {
+  OrderEventType,
   PaymentStatus,
   type PaymentMethod,
 } from "../share/enums/index.js";
 
 export class SyncPaymentStatusCommandHandler {
-  constructor(private readonly orders: IOrderRepository) {}
+  constructor(
+    private readonly orders: IOrderRepository,
+    private readonly restaurants: IRestaurantService,
+  ) {}
 
   async execute(command: {
     orderId: string;
@@ -35,12 +41,42 @@ export class SyncPaymentStatusCommandHandler {
       return current;
     }
 
+    const restaurant = await this.restaurants.getOrderContext(
+      current.restaurantId,
+      [],
+    );
+
     const updated = await this.orders.syncPaymentStatus(
       command.orderId,
       command.method,
       command.status,
+      newOrderEvent(
+        OrderEventType.PAYMENT_STATUS_UPDATED,
+        restaurant.restaurant.ownerUserId,
+        [
+          {
+            recipientUserId: current.customerUserId,
+            title: "Payment status updated",
+            message: `Your payment is now ${command.status}.`,
+          },
+          {
+            recipientUserId: restaurant.restaurant.ownerUserId,
+            title: "Payment status updated",
+            message: `Payment for the order is now ${command.status}.`,
+          },
+        ],
+      ),
     );
-    if (!updated) throw new PaymentMethodConflictError();
+    if (!updated) {
+      const concurrent = await this.orders.findById(command.orderId);
+      if (
+        concurrent?.paymentMethod === command.method &&
+        concurrent.paymentStatus === command.status
+      ) {
+        return concurrent;
+      }
+      throw new PaymentMethodConflictError();
+    }
     return updated;
   }
 }

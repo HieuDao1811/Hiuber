@@ -1,6 +1,7 @@
 import type {
   Order as PrismaOrder,
   OrderItem as PrismaOrderItem,
+  Prisma,
   PrismaClient,
 } from "../../generated/prisma/client.js";
 import type {
@@ -9,6 +10,7 @@ import type {
   IOrderRepository,
 } from "../../interface/order-repository.js";
 import type { Order } from "../../model/order.js";
+import type { OrderEventSpec } from "../../model/order-event.js";
 import {
   OrderStatus,
   PaymentMethod,
@@ -26,6 +28,8 @@ const toDomainOrder = (order: PrismaOrderWithItems): Order => ({
     ? PaymentMethod[order.paymentMethod]
     : null,
   paymentStatus: PaymentStatus[order.paymentStatus],
+  currency: order.currency,
+  version: order.version,
   addressLabel: order.addressLabel,
   deliveryAddress: order.deliveryAddress,
   receiverName: order.receiverName,
@@ -61,12 +65,48 @@ const pageArguments = (query: CursorQuery) => ({
 export class PrismaOrderRepository implements IOrderRepository {
   constructor(private readonly database: PrismaClient) {}
 
-  async createAtomic(data: CreateOrderData): Promise<Order> {
-    const order = await this.database.$transaction((transaction) =>
-      transaction.order.create({
+  private async persistEvent(
+    transaction: Prisma.TransactionClient,
+    order: PrismaOrder,
+    event: OrderEventSpec,
+  ): Promise<void> {
+    if (event.notifications.length > 0) {
+      await transaction.notification.createMany({
+        data: event.notifications.map((notification) => ({
+          ...notification,
+          type: event.type,
+          orderId: order.id,
+          sourceEventId: event.eventId,
+          orderVersion: order.version,
+        })),
+      });
+    }
+    await transaction.orderEventOutbox.create({
+      data: {
+        eventId: event.eventId,
+        type: event.type,
+        orderId: order.id,
+        orderVersion: order.version,
+        orderStatus: order.status,
+        paymentStatus: order.paymentStatus,
+        paymentMethod: order.paymentMethod,
+        customerUserId: order.customerUserId,
+        restaurantOwnerUserId: event.restaurantOwnerUserId,
+        restaurantId: order.restaurantId,
+      },
+    });
+  }
+
+  async createAtomic(
+    data: CreateOrderData,
+    event: OrderEventSpec,
+  ): Promise<Order> {
+    const order = await this.database.$transaction(async (transaction) => {
+      const created = await transaction.order.create({
         data: {
           customerUserId: data.customerUserId,
           restaurantId: data.restaurantId,
+          currency: data.currency,
           addressLabel: data.addressLabel,
           deliveryAddress: data.deliveryAddress,
           receiverName: data.receiverName,
@@ -77,8 +117,10 @@ export class PrismaOrderRepository implements IOrderRepository {
           items: { create: data.items },
         },
         include: { items: { orderBy: { id: "asc" } } },
-      }),
-    );
+      });
+      await this.persistEvent(transaction, created, event);
+      return created;
+    });
 
     return toDomainOrder(order);
   }
@@ -140,11 +182,12 @@ export class PrismaOrderRepository implements IOrderRepository {
     restaurantId: string,
     expectedStatus: OrderStatus,
     status: OrderStatus,
+    event: OrderEventSpec,
   ): Promise<Order | null> {
     return this.database.$transaction(async (transaction) => {
       const update = await transaction.order.updateMany({
         where: { id: orderId, restaurantId, status: expectedStatus },
-        data: { status },
+        data: { status, version: { increment: 1 } },
       });
       if (update.count === 0) {
         return null;
@@ -154,26 +197,32 @@ export class PrismaOrderRepository implements IOrderRepository {
         where: { id: orderId, restaurantId },
         include: { items: { orderBy: { id: "asc" } } },
       });
+      if (order) await this.persistEvent(transaction, order, event);
       return order ? toDomainOrder(order) : null;
     });
   }
-
 
   syncPaymentStatus(
     orderId: string,
     method: PaymentMethod,
     status: PaymentStatus,
+    event: OrderEventSpec,
   ): Promise<Order | null> {
     return this.database.$transaction(async (transaction) => {
       const updated = await transaction.order.updateMany({
         where: {
           id: orderId,
           OR: [{ paymentMethod: null }, { paymentMethod: method }],
+          NOT: { paymentMethod: method, paymentStatus: status },
           ...(status === PaymentStatus.PAID
             ? { paymentStatus: { in: [PaymentStatus.UNPAID, PaymentStatus.PAID] } }
             : { paymentStatus: PaymentStatus.UNPAID }),
         },
-        data: { paymentMethod: method, paymentStatus: status },
+        data: {
+          paymentMethod: method,
+          paymentStatus: status,
+          version: { increment: 1 },
+        },
       });
       if (updated.count === 0) return null;
 
@@ -181,6 +230,7 @@ export class PrismaOrderRepository implements IOrderRepository {
         where: { id: orderId },
         include: { items: { orderBy: { id: "asc" } } },
       });
+      if (order) await this.persistEvent(transaction, order, event);
       return order ? toDomainOrder(order) : null;
     });
   }

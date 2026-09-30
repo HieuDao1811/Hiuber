@@ -123,3 +123,9 @@ export class ConcurrentOrderUpdateError extends AppError {
     );
   }
 }
+
+export class NotificationNotFoundError extends AppError {
+  constructor() {
+    super("NOTIFICATION_NOT_FOUND", "Notification not found", 404);
+  }
+}

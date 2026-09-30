@@ -17,6 +17,12 @@ export class PrismaCustomerAddressRepository
     });
   }
 
+  findOwned(addressId: string, customerId: string) {
+    return this.database.customerAddress.findFirst({
+      where: { id: addressId, customerId },
+    });
+  }
+
   create(data: CreateCustomerAddressData) {
     return this.database.customerAddress.create({ data });
   }

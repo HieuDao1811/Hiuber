@@ -9,6 +9,7 @@ export interface PaymentOrderContext {
   customerUserId: string;
   status: OrderStatus;
   totalPrice: string;
+  currency: string;
   paymentMethod: PaymentMethod | null;
   paymentStatus: OrderPaymentStatus;
 }
@@ -19,5 +20,5 @@ export interface IOrderService {
     orderId: string,
     method: PaymentMethod,
     status: OrderPaymentStatus,
-  ): Promise<void>;
+  ): Promise<{ orderStatus: OrderStatus }>;
 }

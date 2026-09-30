@@ -55,3 +55,19 @@ export class IdempotencyConflictError extends AppError {
     );
   }
 }
+
+export class InvalidProviderSignatureError extends AppError {
+  constructor() {
+    super(
+      "INVALID_PROVIDER_SIGNATURE",
+      "Invalid provider webhook signature",
+      401,
+    );
+  }
+}
+
+export class InvalidProviderEventError extends AppError {
+  constructor(message = "Invalid provider webhook event") {
+    super("INVALID_PROVIDER_EVENT", message, 400);
+  }
+}

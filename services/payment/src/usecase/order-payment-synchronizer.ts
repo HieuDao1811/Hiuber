@@ -3,6 +3,7 @@ import type { IPaymentRepository } from "../interface/payment-repository.js";
 import type { Payment } from "../model/payment.js";
 import {
   OrderPaymentStatus,
+  OrderStatus,
   OrderSyncStatus,
   PaymentStatus,
 } from "../share/enums/index.js";
@@ -27,12 +28,15 @@ export class OrderPaymentSynchronizer {
     if (!orderPaymentStatus) return payment;
 
     try {
-      await this.orders.syncPayment(
+      const result = await this.orders.syncPayment(
         payment.orderId,
         payment.method,
         orderPaymentStatus,
       );
-      return await this.payments.markOrderSynced(payment.id);
+      const refundRequired =
+        payment.status === PaymentStatus.SUCCEEDED &&
+        result.orderStatus === OrderStatus.CANCELLED;
+      return await this.payments.markOrderSynced(payment.id, refundRequired);
     } catch {
       const exponent = Math.min(payment.orderSyncAttempts, 8);
       const nextAttemptAt = new Date(

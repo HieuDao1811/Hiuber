@@ -21,6 +21,8 @@ export interface Order {
   status: OrderStatus;
   paymentMethod: PaymentMethod | null;
   paymentStatus: PaymentStatus;
+  currency: string;
+  version: number;
   addressLabel: string | null;
   deliveryAddress: string;
   receiverName: string;

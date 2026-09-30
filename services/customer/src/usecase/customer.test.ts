@@ -74,6 +74,10 @@ class MemoryAddressRepository implements ICustomerAddressRepository {
     );
   }
 
+  async findOwned(addressId: string, customerId: string) {
+    return this.owned(addressId, customerId);
+  }
+
   async create(data: CreateCustomerAddressData) {
     const now = new Date();
     const address: CustomerAddress = {

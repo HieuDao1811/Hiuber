@@ -12,6 +12,12 @@ export class InvalidAccessTokenError extends AppError {
   }
 }
 
+export class InvalidInternalServiceKeyError extends AppError {
+  constructor() {
+    super("INVALID_INTERNAL_SERVICE_KEY", "Unauthorized", 401);
+  }
+}
+
 export class AuthServiceUnavailableError extends AppError {
   constructor() {
     super(

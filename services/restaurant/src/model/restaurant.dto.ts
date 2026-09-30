@@ -8,6 +8,13 @@ const ImageUrlSchema = z.union([z.url(), z.null()]);
 export const RestaurantIdSchema = z.uuid();
 export const MenuItemIdSchema = z.uuid();
 
+export const OrderContextSchema = z
+  .object({
+    restaurantId: RestaurantIdSchema,
+    menuItemIds: z.array(MenuItemIdSchema).max(50),
+  })
+  .strict();
+
 export const CreateRestaurantSchema = z
   .object({
     name: NameSchema,
