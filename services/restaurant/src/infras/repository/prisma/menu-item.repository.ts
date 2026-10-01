@@ -30,6 +30,13 @@ export class PrismaMenuItemRepository implements IMenuItemRepository {
     return item ? toDomainMenuItem(item) : null;
   }
 
+  async findManyByIds(ids: string[]): Promise<MenuItem[]> {
+    const items = await prisma.menuItem.findMany({
+      where: { id: { in: ids } },
+    });
+    return items.map(toDomainMenuItem);
+  }
+
   async findAvailablePage(
     restaurantId: string,
     query: CursorQuery,

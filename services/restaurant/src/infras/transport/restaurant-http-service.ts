@@ -6,11 +6,15 @@ import {
   CursorPaginationSchema,
   MenuItemIdSchema,
   RestaurantIdSchema,
+  UpdateMenuItemFieldsSchema,
   UpdateMenuItemSchema,
   UpdateRestaurantSchema,
 } from "../../model/restaurant.dto.js";
 import { Requester, RequesterSchema } from "../../model/requester.js";
-import { dataResponse } from "../../share/components/http-response.js";
+import {
+  cursorPageResponse,
+  dataResponse,
+} from "../../share/components/http-response.js";
 import { CreateMenuItemCommandHandler } from "../../usecase/create-menu-item.js";
 import { CreateRestaurantCommandHandler } from "../../usecase/create-restaurant.js";
 import { GetRestaurantQueryHandler } from "../../usecase/get-restaurant.js";
@@ -19,16 +23,33 @@ import { ListRestaurantsQueryHandler } from "../../usecase/list-restaurants.js";
 import { UpdateMenuItemCommandHandler } from "../../usecase/update-menu-item.js";
 import { UpdateRestaurantCommandHandler } from "../../usecase/update-restaurant.js";
 
+const normalizeMultipartMenuItemBody = (req: Request): unknown => {
+  if (!req.is("multipart/form-data")) {
+    return req.body;
+  }
+
+  const body = { ...req.body };
+  if (typeof body.price === "string" && body.price.trim() !== "") {
+    body.price = Number(body.price);
+  }
+  if (body.isAvailable === "true" || body.isAvailable === "false") {
+    body.isAvailable = body.isAvailable === "true";
+  }
+  return body;
+};
+
+type RestaurantUseCases = {
+  createRestaurant: CreateRestaurantCommandHandler;
+  listRestaurants: ListRestaurantsQueryHandler;
+  getRestaurant: GetRestaurantQueryHandler;
+  updateRestaurant: UpdateRestaurantCommandHandler;
+  createMenuItem: CreateMenuItemCommandHandler;
+  listMenuItems: ListMenuItemsQueryHandler;
+  updateMenuItem: UpdateMenuItemCommandHandler;
+};
+
 export class RestaurantHttpService {
-  constructor(
-    private readonly createRestaurant: CreateRestaurantCommandHandler,
-    private readonly listRestaurants: ListRestaurantsQueryHandler,
-    private readonly getRestaurant: GetRestaurantQueryHandler,
-    private readonly updateRestaurant: UpdateRestaurantCommandHandler,
-    private readonly createMenuItem: CreateMenuItemCommandHandler,
-    private readonly listMenuItems: ListMenuItemsQueryHandler,
-    private readonly updateMenuItem: UpdateMenuItemCommandHandler,
-  ) {}
+  constructor(private readonly useCases: RestaurantUseCases) {}
 
   private getRequester(res: Response): Requester {
     const requester = RequesterSchema.safeParse(res.locals.requester);
@@ -40,7 +61,7 @@ export class RestaurantHttpService {
 
   async create(req: Request, res: Response) {
     const input = CreateRestaurantSchema.parse(req.body);
-    const restaurant = await this.createRestaurant.execute({
+    const restaurant = await this.useCases.createRestaurant.execute({
       input,
       requester: this.getRequester(res),
     });
@@ -49,23 +70,20 @@ export class RestaurantHttpService {
 
   async list(req: Request, res: Response) {
     const query = CursorPaginationSchema.parse(req.query);
-    const result = await this.listRestaurants.query(query);
-    return res.status(200).json({
-      data: result.items,
-      pagination: { nextCursor: result.nextCursor },
-    });
+    const page = await this.useCases.listRestaurants.query(query);
+    return res.status(200).json(cursorPageResponse(page));
   }
 
   async getById(req: Request, res: Response) {
     const id = RestaurantIdSchema.parse(req.params.restaurantId);
-    const restaurant = await this.getRestaurant.query({ id });
+    const restaurant = await this.useCases.getRestaurant.query({ id });
     return res.status(200).json(dataResponse(restaurant));
   }
 
   async update(req: Request, res: Response) {
     const id = RestaurantIdSchema.parse(req.params.restaurantId);
     const input = UpdateRestaurantSchema.parse(req.body);
-    const restaurant = await this.updateRestaurant.execute({
+    const restaurant = await this.useCases.updateRestaurant.execute({
       id,
       input,
       requester: this.getRequester(res),
@@ -75,11 +93,12 @@ export class RestaurantHttpService {
 
   async createItem(req: Request, res: Response) {
     const restaurantId = RestaurantIdSchema.parse(req.params.restaurantId);
-    const input = CreateMenuItemSchema.parse(req.body);
-    const item = await this.createMenuItem.execute({
+    const input = CreateMenuItemSchema.parse(normalizeMultipartMenuItemBody(req));
+    const item = await this.useCases.createMenuItem.execute({
       restaurantId,
       input,
       requester: this.getRequester(res),
+      logo: req.file?.buffer,
     });
     return res.status(201).json(dataResponse(item));
   }
@@ -87,22 +106,26 @@ export class RestaurantHttpService {
   async listItems(req: Request, res: Response) {
     const restaurantId = RestaurantIdSchema.parse(req.params.restaurantId);
     const query = CursorPaginationSchema.parse(req.query);
-    const result = await this.listMenuItems.query({ restaurantId, ...query });
-    return res.status(200).json({
-      data: result.items,
-      pagination: { nextCursor: result.nextCursor },
+    const page = await this.useCases.listMenuItems.query({
+      restaurantId,
+      ...query,
     });
+    return res.status(200).json(cursorPageResponse(page));
   }
 
   async updateItem(req: Request, res: Response) {
     const restaurantId = RestaurantIdSchema.parse(req.params.restaurantId);
     const itemId = MenuItemIdSchema.parse(req.params.itemId);
-    const input = UpdateMenuItemSchema.parse(req.body);
-    const item = await this.updateMenuItem.execute({
+    const normalizedBody = normalizeMultipartMenuItemBody(req);
+    const input = req.file
+      ? UpdateMenuItemFieldsSchema.parse(normalizedBody)
+      : UpdateMenuItemSchema.parse(normalizedBody);
+    const item = await this.useCases.updateMenuItem.execute({
       restaurantId,
       itemId,
       input,
       requester: this.getRequester(res),
+      logo: req.file?.buffer,
     });
     return res.status(200).json(dataResponse(item));
   }

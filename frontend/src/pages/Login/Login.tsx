@@ -7,6 +7,7 @@ import { FcGoogle } from "react-icons/fc";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { authService } from "../../constants/app";
 import { useAuth } from "../../hooks/useAuth";
+import { setAccessToken } from "../../services/session";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -31,8 +32,18 @@ const Login = () => {
         password,
       });
 
-      if (data?.token) localStorage.setItem("token", data.token);
-      if (data?.user) setUser(data.user);
+      const accessToken = data?.data?.accessToken ?? data?.token;
+      if (!accessToken) throw new Error("Missing access token");
+      setAccessToken(accessToken);
+      const embeddedUser = data?.data?.user ?? data?.user;
+      if (embeddedUser) {
+        setUser(embeddedUser);
+      } else {
+        const profile = await axios.get(`${authService}/v1/auth/me`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        setUser(profile.data.data);
+      }
       setIsAuth(true);
       toast.success("Đăng nhập thành công!");
       navigate("/");
@@ -55,7 +66,7 @@ const Login = () => {
           code: authResult.code,
         });
         const token = data?.data || data?.token;
-        if (token) localStorage.setItem("token", token);
+        if (token) setAccessToken(token);
         if (data?.user) setUser(data.user);
         setIsAuth(true);
         toast.success("Đăng nhập Google thành công!");

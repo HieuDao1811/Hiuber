@@ -8,6 +8,13 @@ const ImageUrlSchema = z.union([z.url(), z.null()]);
 export const RestaurantIdSchema = z.uuid();
 export const MenuItemIdSchema = z.uuid();
 
+export const OrderContextSchema = z
+  .object({
+    restaurantId: RestaurantIdSchema,
+    menuItemIds: z.array(MenuItemIdSchema).max(50),
+  })
+  .strict();
+
 export const CreateRestaurantSchema = z
   .object({
     name: NameSchema,
@@ -40,14 +47,16 @@ export const CreateMenuItemSchema = z
 
 export type CreateMenuItemInput = z.infer<typeof CreateMenuItemSchema>;
 
-export const UpdateMenuItemSchema = z
+export const UpdateMenuItemFieldsSchema = z
   .object({
     name: NameSchema.optional(),
     price: z.number().finite().nonnegative().optional(),
     imageUrl: ImageUrlSchema.optional(),
     isAvailable: z.boolean().optional(),
   })
-  .strict()
+  .strict();
+
+export const UpdateMenuItemSchema = UpdateMenuItemFieldsSchema
   .refine((input) => Object.keys(input).length > 0, {
     message: "At least one field must be provided",
   });

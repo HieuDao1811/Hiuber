@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FiChevronDown, FiLogOut, FiUser } from "react-icons/fi";
+import { FiBell, FiChevronDown, FiLogOut, FiUser } from "react-icons/fi";
 import { useAuth } from "../../hooks/useAuth";
+import { useRealtime } from "../../realtime/context";
+import { clearSession } from "../../services/session";
 
 export const Header = () => {
   const { user, isAuth, setIsAuth, setUser } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { unreadCount } = useRealtime();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    clearSession();
     setIsAuth(false);
     setUser(null);
     setMenuOpen(false);
@@ -29,14 +32,27 @@ export const Header = () => {
 
         {/* User / Sign in button */}
         <div className="flex items-center gap-2">
-          {isAuth && user ? (
-            <div className="relative">
+          {isAuth ? (
+            <>
+              <Link
+                to="/notifications"
+                aria-label={`Thông báo${unreadCount ? `, ${unreadCount} chưa đọc` : ""}`}
+                className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-brand-light hover:text-brand"
+              >
+                <FiBell aria-hidden="true" />
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-brand px-1 text-center text-[9px] font-bold leading-4 text-white">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+              <div className="relative">
               <button
                 type="button"
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="flex items-center gap-1.5 p-1 rounded-full hover:bg-gray-100 transition-colors"
               >
-                {user.image ? (
+                {user?.image ? (
                   <img
                     src={user.image}
                     alt=""
@@ -44,7 +60,7 @@ export const Header = () => {
                   />
                 ) : (
                   <div className="w-7 h-7 rounded-full bg-brand flex items-center justify-center text-xs font-bold text-white">
-                    {user.name?.charAt(0).toUpperCase() || "U"}
+                    {user?.name?.charAt(0).toUpperCase() || "U"}
                   </div>
                 )}
                 <FiChevronDown className="text-muted text-xs" />
@@ -58,8 +74,8 @@ export const Header = () => {
                   />
                   <div className="absolute right-0 mt-2 w-48 bg-white text-dark rounded-xl shadow-lg border border-border py-1 z-20">
                     <div className="px-3 py-2 border-b border-border">
-                      <p className="text-xs font-semibold truncate">{user.name}</p>
-                      <p className="text-[11px] text-muted truncate">{user.email}</p>
+                      <p className="text-xs font-semibold truncate">{user?.name ?? "Hiuber user"}</p>
+                      <p className="text-[11px] text-muted truncate">{user?.email ?? ""}</p>
                     </div>
                     <Link
                       to="/profile"
@@ -80,7 +96,8 @@ export const Header = () => {
                   </div>
                 </>
               )}
-            </div>
+              </div>
+            </>
           ) : (
             <Link
               to="/login"

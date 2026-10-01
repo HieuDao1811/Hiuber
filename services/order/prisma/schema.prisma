@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  COD
+  MOCK_ONLINE
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+}
+
+enum OrderEventType {
+  ORDER_CREATED
+  ORDER_STATUS_UPDATED
+  PAYMENT_STATUS_UPDATED
+}
+
+model Order {
+  id             String         @id @default(uuid()) @db.Uuid
+  customerUserId String         @db.Uuid
+  restaurantId   String         @db.Uuid
+  status         OrderStatus    @default(PENDING)
+  paymentMethod  PaymentMethod?
+  paymentStatus  PaymentStatus  @default(UNPAID)
+  currency       String         @default("VND") @db.Char(3)
+  version        Int            @default(1)
+
+  addressLabel    String?
+  deliveryAddress String
+  receiverName    String
+  receiverPhone   String
+
+  subtotal    Decimal @db.Decimal(18, 2)
+  deliveryFee Decimal @db.Decimal(18, 2)
+  totalPrice  Decimal @db.Decimal(18, 2)
+
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  items         OrderItem[]
+  notifications Notification[]
+  outboxEvents  OrderEventOutbox[]
+
+  @@index([customerUserId, createdAt])
+  @@index([restaurantId, createdAt])
+  @@index([restaurantId, status])
+  @@index([paymentStatus])
+  @@map("orders")
+}
+
+model Notification {
+  id              String         @id @default(uuid()) @db.Uuid
+  recipientUserId String         @db.Uuid
+  type            OrderEventType
+  title           String         @db.VarChar(160)
+  message         String         @db.VarChar(500)
+  orderId         String?        @db.Uuid
+  sourceEventId   String         @db.Uuid
+  orderVersion    Int?
+  readAt          DateTime?
+  createdAt       DateTime       @default(now())
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([recipientUserId, sourceEventId])
+  @@index([recipientUserId, createdAt, id])
+  @@index([recipientUserId, readAt])
+  @@map("notifications")
+}
+
+model OrderEventOutbox {
+  eventId               String         @id @db.Uuid
+  type                  OrderEventType
+  orderId               String         @db.Uuid
+  orderVersion          Int
+  orderStatus           OrderStatus
+  paymentStatus         PaymentStatus
+  paymentMethod         PaymentMethod?
+  customerUserId        String         @db.Uuid
+  restaurantOwnerUserId String         @db.Uuid
+  restaurantId          String         @db.Uuid
+  occurredAt            DateTime       @default(now())
+  dispatchedAt          DateTime?
+  attempts              Int            @default(0)
+  nextAttemptAt         DateTime       @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([dispatchedAt, nextAttemptAt])
+  @@map("order_event_outbox")
+}
+
+model OrderItem {
+  id         String @id @default(uuid()) @db.Uuid
+  orderId    String @db.Uuid
+  menuItemId String @db.Uuid
+
+  name      String
+  unitPrice Decimal @db.Decimal(12, 2)
+  quantity  Int
+  lineTotal Decimal @db.Decimal(18, 2)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, menuItemId])
+  @@index([orderId])
+  @@map("order_items")
+}

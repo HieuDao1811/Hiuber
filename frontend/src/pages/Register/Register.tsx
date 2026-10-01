@@ -7,6 +7,7 @@ import { FcGoogle } from "react-icons/fc";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { authService } from "../../constants/app";
 import { useAuth } from "../../hooks/useAuth";
+import { setAccessToken } from "../../services/session";
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -45,8 +46,9 @@ const Register = () => {
         image: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name.trim())}`,
       });
 
-      if (data?.token) localStorage.setItem("token", data.token);
-      if (data?.user) setUser(data.user);
+      const accessToken = data?.data?.accessToken ?? data?.token;
+      if (accessToken) setAccessToken(accessToken);
+      if (data?.data?.user ?? data?.user) setUser(data?.data?.user ?? data.user);
       setIsAuth(true);
       toast.success("Đăng ký tài khoản thành công!");
       navigate("/");
@@ -69,7 +71,7 @@ const Register = () => {
           code: authResult.code,
         });
         const token = data?.data || data?.token;
-        if (token) localStorage.setItem("token", token);
+        if (token) setAccessToken(token);
         if (data?.user) setUser(data.user);
         setIsAuth(true);
         toast.success("Đăng nhập Google thành công!");
